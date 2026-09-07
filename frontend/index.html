@@ -4,10 +4,29 @@
 <head>
     <meta charset="UTF-8">
     <title>Mis Notas</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-    <h1>Hola mundo</h1>
+    <div class="app-container">
+        <aside class="sidebar">
+            <button id="btn-new" onclick="nuevaNota()">+ Nueva Nota</button>
+            <ul id="notes-list"></ul>
+        </aside>
+
+        <main class="editor">
+            <input type="hidden" id="note-id">
+            <input type="text" id="note-title" placeholder="Título de la nota...">
+            <textarea id="note-content" placeholder="Escribe tu nota aquí..."></textarea>
+
+            <div class="actions">
+                <button id="btn-save" onclick="guardarNota()">Guardar</button>
+                <button id="btn-delete" onclick="eliminarNota()" class="btn-danger">Eliminar</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 
 </html>

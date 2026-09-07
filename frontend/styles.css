@@ -1,14 +1,23 @@
+:root {
+    --raspberry-rose: #F2619C;
+    --soft-lilac: #E7BEF8;
+    --blueberry-milk: #93ABD9;
+    --lemon-cream: #EDE986;
+    --text-dark: #333333;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
     display: flex;
     height: 100vh;
-    background-color: #f4f4f9;
+    background-color: var(--soft-lilac);
+    color: var(--text-dark);
 }
 
 .app-container {
@@ -17,79 +26,136 @@ body {
     height: 100%;
 }
 
-/* Sidebar */
+/* Sidebar - Blueberry Milk */
 .sidebar {
     width: 280px;
-    background: #ffffff;
-    border-right: 1px solid #ddd;
-    padding: 15px;
+    background-color: var(--blueberry-milk);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
 }
 
-.sidebar button {
+/* Botón Nueva Nota - Lemon Cream */
+.sidebar #btn-new {
     width: 100%;
-    padding: 10px;
-    background: #007bff;
-    color: white;
+    padding: 12px;
+    background-color: var(--lemon-cream);
+    color: var(--text-dark);
+    font-weight: bold;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    transition: transform 0.1s ease, background-color 0.2s;
 }
 
+.sidebar #btn-new:hover {
+    filter: brightness(0.95);
+    transform: translateY(-1px);
+}
+
+/* Lista de Notas */
 .sidebar ul {
     list-style: none;
+    overflow-y: auto;
 }
 
 .sidebar li {
-    padding: 10px;
-    border-bottom: 1px solid #eee;
+    padding: 12px 15px;
+    background-color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 8px;
+    border-radius: 8px;
     cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 .sidebar li:hover {
-    background: #f0f0f0;
+    background-color: #ffffff;
+    transform: translateX(4px);
 }
 
-/* Editor */
+/* Editor Principal */
 .editor {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 20px;
+    padding: 30px;
+    background-color: #ffffff;
+    margin: 15px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
+/* Inputs de Título y Contenido - Lemon Cream de fondo sutil */
 #note-title {
-    font-size: 1.5rem;
-    padding: 10px;
-    border: 1px solid #ccc;
-    margin-bottom: 10px;
-    border-radius: 5px;
+    font-size: 1.6rem;
+    font-weight: bold;
+    padding: 12px 15px;
+    border: 2px solid var(--blueberry-milk);
+    background-color: rgba(237, 233, 134, 0.25);
+    border-radius: 8px;
+    margin-bottom: 15px;
+    outline: none;
+    color: var(--text-dark);
+}
+
+#note-title:focus {
+    border-color: var(--raspberry-rose);
 }
 
 #note-content {
     flex: 1;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    padding: 15px;
+    border: 2px solid var(--blueberry-milk);
+    background-color: rgba(237, 233, 134, 0.15);
+    border-radius: 8px;
     resize: none;
-    font-size: 1rem;
-    margin-bottom: 10px;
+    font-size: 1.05rem;
+    line-height: 1.5;
+    margin-bottom: 20px;
+    outline: none;
+    color: var(--text-dark);
 }
 
+#note-content:focus {
+    border-color: var(--raspberry-rose);
+}
+
+/* Botones de Acción - Raspberry Rose */
 .actions {
     display: flex;
-    gap: 10px;
+    gap: 12px;
+    justify-content: flex-end;
 }
 
 .actions button {
-    padding: 10px 20px;
+    padding: 12px 24px;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 0.95rem;
     cursor: pointer;
-    background: #28a745;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+#btn-save {
+    background-color: var(--raspberry-rose);
     color: white;
 }
 
+#btn-save:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
 .actions .btn-danger {
-    background: #dc3545;
+    background-color: #e65b5b;
+    color: white;
+}
+
+.actions .btn-danger:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
 }
