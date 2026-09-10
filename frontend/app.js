@@ -103,8 +103,22 @@ async function guardarNota() {
 
 async function eliminarNota() {
   const idInput = document.getElementById("note-id").value;
-  if (!idInput) return;
+  const titleInput = document.getElementById("note-title").value;
 
+  // 1. Verificar si hay una nota seleccionada
+  if (!idInput) {
+    alert("Selecciona una nota de la lista para eliminar.");
+    return;
+  }
+
+  // 2. Ventana de confirmación
+  const nombreNota = titleInput ? `"${titleInput}"` : "esta nota";
+  const confirmar = confirm(`¿Estás seguro de que deseas eliminar ${nombreNota}? Esta acción no se puede deshacer.`);
+
+  // 3. Cancelar si el usuario presiona "Cancelar"
+  if (!confirmar) return;
+
+  // 4. Ejecutar borrado si el usuario presiona "Aceptar"
   await ejecutarSQL(
     "DELETE FROM Notas WHERE id = ?",
     [{ type: "integer", value: String(idInput) }]
