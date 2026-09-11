@@ -4,27 +4,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Notas</title>
+    <title>Mis Notas - Melt</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
     <div class="app-container">
+        <!-- Sidebar lateral -->
         <aside class="sidebar">
-            <button id="btn-new" onclick="nuevaNota()">+ Nueva Nota</button>
-            <ul id="notes-list"></ul>
+            <div>
+                <h2>Inicio</h2>
+            </div>
+            <button class="nav-btn trash-btn" onclick="alert('Papelera vacía')">Papelera</button>
         </aside>
 
-        <main class="editor">
+        <!-- Contenido Central -->
+        <main class="main-content">
+            <header class="greeting-header">
+                <h1 id="greeting">Buenos días</h1>
+            </header>
+
+            <!-- 3 Tarjetas Superiores del boceto -->
+            <section class="top-cards">
+                <div class="card-action card-new" onclick="abrirEditor()">+ Nueva Nota</div>
+                <div class="card-action card-favs">Favoritos</div>
+                <div class="card-action card-categories">Categorías</div>
+            </section>
+
+            <!-- Cuadrícula de Notas Recientes -->
+            <h2 class="section-title">Tareas recientes:</h2>
+            <div class="notes-grid" id="notes-list"></div>
+        </main>
+    </div>
+
+    <!-- Modal para crear / editar nota sin perder la lógica CRUD -->
+    <div class="editor-modal" id="editor-modal">
+        <div class="editor-content">
             <input type="hidden" id="note-id">
             <input type="text" id="note-title" placeholder="Título de la nota...">
             <textarea id="note-content" placeholder="Escribe tu nota aquí..."></textarea>
 
             <div class="actions">
-                <button id="btn-save" onclick="guardarNota()">Guardar</button>
-                <button id="btn-delete" onclick="eliminarNota()" class="btn-danger">Eliminar</button>
+                <button class="btn-close" onclick="cerrarEditor()">Cancelar</button>
+                <button class="btn-save" onclick="guardarNota()">Guardar</button>
+                <button id="btn-delete" class="btn-danger" onclick="eliminarNota()">Eliminar</button>
             </div>
-        </main>
+        </div>
     </div>
 
     <script src="app.js"></script>
