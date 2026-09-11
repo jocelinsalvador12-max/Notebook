@@ -4,55 +4,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Notas - Melt</title>
+    <title>Mi Aplicación de Notas</title>
+    <!-- Enlace imprescindible para cargar el CSS -->
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
+
     <div class="app-container">
-        <!-- Sidebar lateral -->
+        <!-- Sidebar -->
         <aside class="sidebar">
-            <div>
-                <h2>Inicio</h2>
-            </div>
-            <button class="nav-btn trash-btn" onclick="alert('Papelera vacía')">Papelera</button>
+            <h2>Inicio</h2>
+            <button class="nav-btn trash-btn">Papelera</button>
         </aside>
 
-        <!-- Contenido Central -->
+        <!-- Contenido Principal -->
         <main class="main-content">
             <header class="greeting-header">
-                <h1 id="greeting">Buenos días</h1>
+                <h1>Buenos días</h1>
             </header>
 
-            <!-- 3 Tarjetas Superiores del boceto -->
+            <!-- Botones de Acción Superiores -->
             <section class="top-cards">
-                <div class="card-action card-new" onclick="abrirEditor()">+ Nueva Nota</div>
-                <div class="card-action card-favs">Favoritos</div>
-                <div class="card-action card-categories">Categorías</div>
+                <button class="card-action card-new">+ Nueva Nota</button>
+                <button class="card-action card-favs">Favoritos</button>
+                <button class="card-action card-categories">Categorías</button>
             </section>
 
-            <!-- Cuadrícula de Notas Recientes -->
-            <h2 class="section-title">Tareas recientes:</h2>
-            <div class="notes-grid" id="notes-list"></div>
+            <!-- Título de Sección -->
+            <h2 class="section-title">Tareas recientes</h2>
+
+            <!-- Cuadrícula de Tarjetas Completas estilo Celular -->
+            <div class="notes-grid">
+
+                <!-- Tarjeta 1 (Durazno) -->
+                <article class="note-card card-peach">
+                    <div class="card-header-icons">
+                        <button title="Fijar">📌</button>
+                        <button title="Editar">✏️</button>
+                        <button title="Eliminar">🗑️</button>
+                    </div>
+                    <div class="card-body">
+                        <h3>tema 2</h3>
+                        <p>Actualizar la interfaz gráfica y verificar la persistencia de datos en PostgreSQL.</p>
+                    </div>
+                    <div class="card-footer">
+                        <span>📅 Hace un momento</span>
+                    </div>
+                </article>
+
+                <!-- Tarjeta 2 (Lavanda) -->
+                <article class="note-card card-lavender">
+                    <div class="card-header-icons">
+                        <button title="Fijar">📌</button>
+                        <button title="Editar">✏️</button>
+                        <button title="Eliminar">🗑️</button>
+                    </div>
+                    <div class="card-body">
+                        <h3>tema 2</h3>
+                        <p>Revisar la configuración del servidor y probar los endpoints en la API.</p>
+                    </div>
+                    <div class="card-footer">
+                        <span>📅 Hace 2 min</span>
+                    </div>
+                </article>
+
+                <!-- Tarjeta 3 (Menta) -->
+                <article class="note-card card-mint">
+                    <div class="card-header-icons">
+                        <button title="Fijar">📌</button>
+                        <button title="Editar">✏️</button>
+                        <button title="Eliminar">🗑️</button>
+                    </div>
+                    <div class="card-body">
+                        <h3>Proyecto Frontend</h3>
+                        <p>Diseñar la vista de notas arrastrables y agregar animaciones suaves.</p>
+                    </div>
+                    <div class="card-footer">
+                        <span>📅 Hace 5 min</span>
+                    </div>
+                </article>
+
+            </div>
         </main>
     </div>
 
-    <!-- Modal para crear / editar nota sin perder la lógica CRUD -->
-    <div class="editor-modal" id="editor-modal">
-        <div class="editor-content">
-            <input type="hidden" id="note-id">
-            <input type="text" id="note-title" placeholder="Título de la nota...">
-            <textarea id="note-content" placeholder="Escribe tu nota aquí..."></textarea>
-
-            <div class="actions">
-                <button class="btn-close" onclick="cerrarEditor()">Cancelar</button>
-                <button class="btn-save" onclick="guardarNota()">Guardar</button>
-                <button id="btn-delete" class="btn-danger" onclick="eliminarNota()">Eliminar</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
 </body>
 
 </html>

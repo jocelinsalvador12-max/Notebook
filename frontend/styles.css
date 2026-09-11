@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
 
-/* Variables con la nueva paleta de colores */
 :root {
     --sky: #7FB9E6;
     --lavender: #D6BEEA;
@@ -9,7 +8,7 @@
     --pink: #F98BA9;
     --tangerine: #FF8F45;
 
-    --text-dark: #2C3E50;
+    --text-dark: #333333;
     --text-light: #FFFFFF;
 }
 
@@ -20,24 +19,22 @@
     font-family: 'Fredoka', 'Segoe UI', sans-serif;
 }
 
-/* Fondo principal sin blanco */
 body {
     background: linear-gradient(135deg, var(--lavender) 0%, var(--sky) 100%);
     background-attachment: fixed;
-    color: var(--text-dark);
+    color: var(--text-light);
     display: flex;
     height: 100vh;
     overflow: hidden;
 }
 
-/* Contenedor Principal */
 .app-container {
     display: flex;
     width: 100%;
     height: 100%;
 }
 
-/* Sidebar estilo Pop con tono Pink/Lavender */
+/* Sidebar lateral */
 .sidebar {
     width: 230px;
     background: linear-gradient(180deg, var(--pink) 0%, var(--lavender) 100%);
@@ -61,37 +58,22 @@ body {
 .nav-btn {
     width: 100%;
     padding: 14px;
-    border: 3px solid rgba(255, 255, 255, 0.8);
+    border: 3px solid rgba(255, 255, 255, 0.9);
     border-radius: 18px;
-    background-color: var(--butter);
-    color: var(--text-dark);
+    background-color: var(--sky);
+    color: var(--text-light);
     font-weight: 700;
     font-size: 15px;
     cursor: pointer;
-    margin-bottom: 12px;
-    box-shadow: 0 5px 0px var(--tangerine);
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 5px 0px #538BB8;
+    transition: transform 0.2s;
 }
 
 .nav-btn:hover {
-    transform: translateY(-3px);
-    background-color: var(--matcha);
-    color: var(--text-light);
-    box-shadow: 0 8px 0px #8A9A40;
+    transform: translateY(-2px);
 }
 
-.trash-btn {
-    background-color: var(--sky);
-    color: var(--text-light);
-    box-shadow: 0 5px 0px #538BB8;
-}
-
-.trash-btn:hover {
-    background-color: var(--pink);
-    box-shadow: 0 8px 0px #C75B7A;
-}
-
-/* Área Principal con degradado pastel */
+/* Área Principal */
 .main-content {
     flex: 1;
     padding: 35px 40px;
@@ -102,12 +84,12 @@ body {
 .greeting-header h1 {
     font-size: 34px;
     font-weight: 700;
-    color: var(--text-dark);
-    text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.6);
+    color: var(--text-light);
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
     margin-bottom: 25px;
 }
 
-/* Tarjetas Superiores de Acción */
+/* Botones de Acción Superiores */
 .top-cards {
     display: flex;
     gap: 20px;
@@ -116,37 +98,34 @@ body {
 
 .card-action {
     flex: 1;
-    padding: 24px 20px;
+    padding: 20px;
     border-radius: 24px;
     text-align: center;
     font-weight: 700;
     font-size: 19px;
-    color: var(--text-dark);
+    color: var(--text-light);
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 3px solid #FFF;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s;
 }
 
 .card-action:hover {
-    transform: translateY(-5px) scale(1.02);
+    transform: translateY(-4px);
 }
 
 .card-new {
     background-color: var(--butter);
-    border: 3px solid #FFF;
     box-shadow: 0 8px 0px var(--tangerine);
 }
 
 .card-favs {
     background-color: var(--pink);
-    color: var(--text-light);
-    border: 3px solid #FFF;
     box-shadow: 0 8px 0px #C75B7A;
 }
 
 .card-categories {
     background-color: var(--matcha);
-    color: var(--text-light);
-    border: 3px solid #FFF;
     box-shadow: 0 8px 0px #8A9A40;
 }
 
@@ -154,190 +133,100 @@ body {
 .section-title {
     font-size: 24px;
     font-weight: 700;
-    color: var(--text-dark);
+    color: var(--text-light);
     margin-bottom: 20px;
-    display: inline-block;
-    border-bottom: 4px dashed var(--tangerine);
-    padding-bottom: 4px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
 }
 
-/* Cuadrícula de Notas */
+/* Cuadrícula de Tarjetas */
 .notes-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 22px;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 20px;
 }
 
-/* Tarjetas de Notas dinámicas sin fondo blanco */
+/* Estructura Tarjeta estilo Celular */
 .note-card {
-    background-color: var(--butter);
     border-radius: 22px;
-    padding: 20px;
-    border: 3px solid #FFF;
-    position: relative;
-    height: 180px;
+    padding: 16px;
+    min-height: 220px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    cursor: pointer;
-    box-shadow: 0 6px 0px var(--tangerine);
-    transition: all 0.2s ease;
-}
-
-.note-card:nth-child(2n) {
-    background-color: var(--matcha);
-    box-shadow: 0 6px 0px #8A9A40;
-    color: var(--text-light);
-}
-
-.note-card:nth-child(2n) h3,
-.note-card:nth-child(2n) p {
-    color: var(--text-light);
-}
-
-.note-card:nth-child(3n) {
-    background-color: var(--sky);
-    box-shadow: 0 6px 0px #538BB8;
-    color: var(--text-light);
-}
-
-.note-card:nth-child(3n) h3,
-.note-card:nth-child(3n) p {
-    color: var(--text-light);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .note-card:hover {
-    transform: translateY(-4px);
-    filter: brightness(1.05);
+    transform: translateY(-5px);
+    box-shadow: 0 12px 22px rgba(0, 0, 0, 0.12);
 }
 
-.note-card .fav-icon {
-    position: absolute;
-    top: 12px;
-    left: 14px;
-    color: var(--tangerine);
-    font-size: 18px;
+/* Colores Pastel de Tarjetas */
+.card-peach {
+    background-color: #FFEADB;
 }
 
-.note-card .delete-icon {
-    position: absolute;
-    top: 12px;
-    right: 14px;
-    color: var(--pink);
-    font-weight: bold;
-    font-size: 16px;
+.card-lavender {
+    background-color: #F1E5FF;
 }
 
-.note-card h3 {
-    margin-top: 22px;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-dark);
+.card-mint {
+    background-color: #E2F6E9;
 }
 
-.note-card p {
-    font-size: 14px;
-    color: #4A5568;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-}
-
-/* Ventana Modal del Editor */
-.editor-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(44, 62, 80, 0.5);
-    backdrop-filter: blur(4px);
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-}
-
-.editor-content {
-    background: var(--lavender);
-    padding: 30px;
-    border-radius: 28px;
-    border: 4px solid #FFF;
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
-    width: 90%;
-    max-width: 520px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-}
-
-.editor-content input,
-.editor-content textarea {
-    width: 100%;
-    background-color: rgba(255, 255, 255, 0.85);
-    border: 3px solid var(--sky);
-    border-radius: 14px;
-    padding: 12px 16px;
-    font-size: 16px;
-    color: var(--text-dark);
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.editor-content input:focus,
-.editor-content textarea:focus {
-    border-color: var(--pink);
-    background-color: #FFF;
-}
-
-.editor-content textarea {
-    height: 140px;
-    resize: none;
-}
-
-.actions {
+/* Barra superior de la tarjeta (Iconos) */
+.card-header-icons {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 6px;
+    margin-bottom: 12px;
 }
 
-.btn-save {
-    background-color: var(--matcha);
-    color: var(--text-light);
+.card-header-icons button {
+    background: rgba(255, 255, 255, 0.9);
     border: none;
-    padding: 12px 22px;
-    border-radius: 14px;
-    font-weight: 700;
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
     cursor: pointer;
-    box-shadow: 0 4px 0px #8A9A40;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s;
 }
 
-.btn-close {
-    background-color: var(--pink);
-    color: var(--text-light);
-    border: none;
-    padding: 12px 22px;
-    border-radius: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 4px 0px #C75B7A;
+.card-header-icons button:hover {
+    transform: scale(1.1);
 }
 
-.btn-danger {
-    background-color: var(--tangerine);
-    color: var(--text-light);
-    border: none;
-    padding: 12px 22px;
-    border-radius: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 4px 0px #D86B24;
+/* Cuerpo de la Tarjeta */
+.card-body {
+    flex: 1;
 }
 
-.btn-save:hover,
-.btn-close:hover,
-.btn-danger:hover {
-    transform: translateY(-2px);
+.card-body h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 6px;
+}
+
+.card-body p {
+    font-size: 13px;
+    color: #555555;
+    line-height: 1.4;
+}
+
+/* Pie de la Tarjeta (Fecha) */
+.card-footer {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    font-size: 11px;
+    color: #777777;
+    font-weight: 600;
 }
