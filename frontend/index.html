@@ -89,6 +89,31 @@
         </main>
     </div>
 
+    <!-- Modal para crear / editar notas -->
+    <div id="editor-modal" class="editor-modal">
+        <div class="editor-content">
+            <h2>Nueva Nota</h2>
+            <input type="text" id="note-title" placeholder="Título de la nota..." />
+            <textarea id="note-content" placeholder="Escribe el contenido aquí..."></textarea>
+
+            <div class="color-picker">
+                <label>Color de la tarjeta:</label>
+                <select id="note-color">
+                    <option value="card-peach">Durazno</option>
+                    <option value="card-lavender">Lavanda</option>
+                    <option value="card-mint">Menta</option>
+                </select>
+            </div>
+
+            <div class="actions">
+                <button id="btn-cancel" class="btn-close">Cancelar</button>
+                <button id="btn-save-note" class="btn-save">Guardar Nota</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enlace al archivo JavaScript -->
+    <script src="script.js"></script>
 </body>
 
 </html>
