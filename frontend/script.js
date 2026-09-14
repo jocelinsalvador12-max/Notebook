@@ -12,145 +12,149 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputTitle = document.getElementById('note-title');
     const inputContent = document.getElementById('note-content');
     const selectColor = document.getElementById('note-color');
+    const selectCategory = document.getElementById('note-category');
 
-    let notes = [];
-    let currentFilter = 'all';
+    let currentTable = 'Notas';
 
-    // Configuración de credenciales de Turso
     const TURSO_URL = "https://notebook-jocelinsalvador.aws-us-west-2.turso.io/v2/pipeline";
     const TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODkxODM0OTcsImlkIjoiMDFhMDdjYjMtMTIwMS03YWU0LTkxNGUtMDczZDhkNGQ0NGQxIiwia2lkIjoiVzF5UmdJSk83R0tYZU9icF93aXBuYU1ySUVKcjRjakZhZV9LdzFKS0hiWSIsInJpZCI6IjhjNGM1MTc4LWY1NTctNGVjYS1iYjlkLTAzYTBjN2QyMzVlYyJ9.QYp6S4BmRrAfaI-s0Ome95SnZf4j7txUx4GwROH0MZDa56An8_-_OV6rqtXNKA9ZJcz8k0gpGi_xJAfynUIcBw";
 
-    // Función helper para enviar SQL a Turso
     async function queryTurso(sql, args = []) {
-        const response = await fetch(TURSO_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${TOKEN}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                requests: [
-                    {
-                        type: "execute",
-                        stmt: { sql, args }
-                    },
-                    { type: "close" }
-                ]
-            })
-        });
-        return await response.json();
-    }
-
-    // 1. Obtener notas desde Turso
-    async function fetchNotes() {
         try {
-            const data = await queryTurso("SELECT id, title, content, color, is_fav, in_trash FROM Notas ORDER BY id DESC");
-            const rows = data.results[0].response.result.rows;
-
-            notes = rows.map(row => ({
-                id: row[0].value,
-                title: row[1].value,
-                content: row[2].value,
-                color: row[3].value || 'card-peach',
-                is_fav: Number(row[4].value),
-                in_trash: Number(row[5].value)
-            }));
-
-            renderNotes();
-        } catch (error) {
-            console.error('Error al cargar notas:', error);
+            const response = await fetch(TURSO_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    requests: [
+                        { type: "execute", stmt: { sql, args } },
+                        { type: "close" }
+                    ]
+                })
+            });
+            return await response.json();
+        } catch (err) {
+            console.error('Error al conectar con Turso:', err);
+            return null;
         }
     }
 
-    // 2. Renderizar tarjetas
-    function renderNotes() {
+    async function loadCurrentView() {
+        notesGrid.innerHTML = '<p style="color: white;">Cargando...</p>';
+        const data = await queryTurso(`SELECT id, title, content, color, category FROM ${currentTable} ORDER BY id DESC`);
+
+        const rows = data?.results?.[0]?.response?.result?.rows || [];
+
+        const items = rows.map(row => ({
+            id: row[0]?.value,
+            title: row[1]?.value || 'Sin título',
+            content: row[2]?.value || '',
+            color: row[3]?.value || 'card-peach',
+            category: row[4]?.value || 'General'
+        }));
+
+        renderNotes(items);
+    }
+
+    function renderNotes(items) {
         notesGrid.innerHTML = '';
 
-        let filteredNotes = notes.filter(note => {
-            if (currentFilter === 'trash') return note.in_trash === 1;
-            if (currentFilter === 'favs') return note.is_fav === 1 && note.in_trash === 0;
-            return note.in_trash === 0;
-        });
-
-        if (filteredNotes.length === 0) {
-            notesGrid.innerHTML = `<p style="color: white; font-weight: 600;">No hay notas en esta sección.</p>`;
+        if (items.length === 0) {
+            notesGrid.innerHTML = `<p style="color: white; font-weight: 600;">No hay notas en ${currentTable}.</p>`;
             return;
         }
 
-        filteredNotes.forEach(note => {
+        items.forEach(item => {
             const card = document.createElement('article');
-            card.className = `note-card ${note.color}`;
+            card.className = `note-card ${item.color}`;
+
+            let iconsHTML = currentTable === 'Papelera'
+                ? `<button class="btn-restore" title="Restaurar nota">🔄</button>`
+                : `<button class="btn-fav" title="Favorito">⭐</button>
+           <button class="btn-delete" title="Mover a Papelera">🗑️</button>`;
 
             card.innerHTML = `
-        <div class="card-header-icons">
-          <button class="btn-fav" title="Favorito">${note.is_fav ? '⭐' : '📌'}</button>
-          <button class="btn-delete" title="Papelera">${note.in_trash ? '🔄' : '🗑️'}</button>
-        </div>
+        <div class="card-header-icons">${iconsHTML}</div>
         <div class="card-body">
-          <h3>${note.title}</h3>
-          <p>${note.content}</p>
+          <h3>${item.title}</h3>
+          <p>${item.content}</p>
         </div>
         <div class="card-footer">
-          <span>📅 Reciente</span>
+          <span>📁 ${item.category}</span>
         </div>
       `;
 
-            // Evento Favorito
-            card.querySelector('.btn-fav').addEventListener('click', async () => {
-                const newStatus = note.is_fav === 1 ? 0 : 1;
-                await queryTurso("UPDATE Notas SET is_fav = ? WHERE id = ?", [
-                    { type: "integer", value: newStatus.toString() },
-                    { type: "integer", value: note.id.toString() }
-                ]);
-                note.is_fav = newStatus;
-                renderNotes();
-            });
+            if (currentTable === 'Papelera') {
+                card.querySelector('.btn-restore').addEventListener('click', async () => {
+                    await queryTurso("INSERT INTO Notas (title, content, color, category) VALUES (?, ?, ?, ?)", [
+                        { type: "text", value: item.title },
+                        { type: "text", value: item.content },
+                        { type: "text", value: item.color },
+                        { type: "text", value: item.category }
+                    ]);
+                    await queryTurso("DELETE FROM Papelera WHERE id = ?", [
+                        { type: "integer", value: item.id.toString() }
+                    ]);
+                    loadCurrentView();
+                });
+            } else {
+                card.querySelector('.btn-fav').addEventListener('click', async () => {
+                    await queryTurso("INSERT INTO Favoritos (title, content, color, category) VALUES (?, ?, ?, ?)", [
+                        { type: "text", value: item.title },
+                        { type: "text", value: item.content },
+                        { type: "text", value: item.color },
+                        { type: "text", value: item.category }
+                    ]);
+                    alert('Copiado a Favoritos');
+                });
 
-            // Evento Papelera
-            card.querySelector('.btn-delete').addEventListener('click', async () => {
-                const newStatus = note.in_trash === 1 ? 0 : 1;
-                await queryTurso("UPDATE Notas SET in_trash = ? WHERE id = ?", [
-                    { type: "integer", value: newStatus.toString() },
-                    { type: "integer", value: note.id.toString() }
-                ]);
-                note.in_trash = newStatus;
-                renderNotes();
-            });
+                card.querySelector('.btn-delete').addEventListener('click', async () => {
+                    await queryTurso("INSERT INTO Papelera (title, content, color, category) VALUES (?, ?, ?, ?)", [
+                        { type: "text", value: item.title },
+                        { type: "text", value: item.content },
+                        { type: "text", value: item.color },
+                        { type: "text", value: item.category }
+                    ]);
+                    await queryTurso(`DELETE FROM ${currentTable} WHERE id = ?`, [
+                        { type: "integer", value: item.id.toString() }
+                    ]);
+                    loadCurrentView();
+                });
+            }
 
             notesGrid.appendChild(card);
         });
     }
 
-    // 3. Guardar nueva nota
     btnSaveNote.addEventListener('click', async () => {
         const title = inputTitle.value.trim();
         const content = inputContent.value.trim();
         const color = selectColor.value;
+        const category = selectCategory ? selectCategory.value : 'General';
 
         if (!title || !content) {
             alert('Por favor completa el título y el contenido.');
             return;
         }
 
-        try {
-            await queryTurso(
-                "INSERT INTO Notas (title, content, color, is_fav, in_trash) VALUES (?, ?, ?, 0, 0)",
-                [
-                    { type: "text", value: title },
-                    { type: "text", value: content },
-                    { type: "text", value: color }
-                ]
-            );
+        await queryTurso(
+            "INSERT INTO Notas (title, content, color, category) VALUES (?, ?, ?, ?)",
+            [
+                { type: "text", value: title },
+                { type: "text", value: content },
+                { type: "text", value: color },
+                { type: "text", value: category }
+            ]
+        );
 
-            modal.classList.remove('active');
-            fetchNotes(); // Recargar notas desde la base de datos
-        } catch (error) {
-            console.error('Error al guardar:', error);
-            alert('No se pudo guardar la nota.');
-        }
+        modal.classList.remove('active');
+        currentTable = 'Notas';
+        sectionTitle.textContent = 'Tareas recientes';
+        loadCurrentView();
     });
 
-    // Eventos de interfaz
     btnNewNote.addEventListener('click', () => {
         inputTitle.value = '';
         inputContent.value = '';
@@ -160,22 +164,22 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCancel.addEventListener('click', () => modal.classList.remove('active'));
 
     btnFavs.addEventListener('click', () => {
-        currentFilter = 'favs';
+        currentTable = 'Favoritos';
         sectionTitle.textContent = 'Notas Favoritas ⭐';
-        renderNotes();
+        loadCurrentView();
     });
 
     btnTrash.addEventListener('click', () => {
-        currentFilter = 'trash';
+        currentTable = 'Papelera';
         sectionTitle.textContent = 'Papelera 🗑️';
-        renderNotes();
+        loadCurrentView();
     });
 
     btnCategories.addEventListener('click', () => {
-        currentFilter = 'all';
-        sectionTitle.textContent = 'Tareas recientes';
-        renderNotes();
+        currentTable = 'Notas';
+        sectionTitle.textContent = 'Todas las Categorías 📁';
+        loadCurrentView();
     });
 
-    fetchNotes();
+    loadCurrentView();
 });
