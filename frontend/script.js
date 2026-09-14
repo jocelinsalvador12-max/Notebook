@@ -70,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const oldHeader = document.querySelector('.fullscreen-header');
         if (oldHeader) oldHeader.remove();
 
-        // Se agrega 'Categorías' a la condición para que responda a esa vista
         if (currentTable === 'Favoritos' || currentTable === 'Papelera' || currentTable === 'Categorías' || categoryFilter) {
             appContainer.classList.add('full-screen-mode');
 
@@ -82,21 +81,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const header = document.createElement('header');
             header.className = 'fullscreen-header';
             header.innerHTML = `
-            <h2>${titleText}</h2>
-            <button class="btn-back">← Volver</button>
-        `;
+                <h2>${titleText}</h2>
+                <button class="btn-back">← Volver</button>
+            `;
 
             // Evento para regresar al inicio (Notas)
             header.querySelector('.btn-back').addEventListener('click', () => {
                 currentTable = 'Notas';
                 categoryFilter = null;
                 appContainer.classList.remove('full-screen-mode');
-
-                // Remueve la vista de cuadrícula de categorías si estaba activa
-                const categoriesGrid = document.querySelector('.categories-grid');
-                if (categoriesGrid) categoriesGrid.remove();
-
-                notesGrid.style.display = 'grid';
                 loadCurrentView();
             });
 
@@ -268,7 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mostrarCategorias() {
-        appContainer.classList.add('full-screen-mode');
+        currentTable = 'Categorías';
+        categoryFilter = null;
+
+        setupFullScreenHeader();
+
         if (sectionTitle) sectionTitle.textContent = '';
 
         notesGrid.className = 'categories-grid';
