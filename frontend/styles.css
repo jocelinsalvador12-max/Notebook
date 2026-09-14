@@ -145,7 +145,7 @@ body {
     gap: 20px;
 }
 
-/* Estructura Tarjeta estilo Celular */
+/* Estructura Tarjeta */
 .note-card {
     border-radius: 22px;
     padding: 16px;
@@ -221,7 +221,7 @@ body {
     line-height: 1.4;
 }
 
-/* Pie de la Tarjeta (Fecha) */
+/* Pie de la Tarjeta */
 .card-footer {
     margin-top: 15px;
     padding-top: 10px;
@@ -282,14 +282,6 @@ body {
     resize: none;
 }
 
-.color-picker {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 700;
-    color: var(--text-dark);
-}
-
 .actions {
     display: flex;
     justify-content: flex-end;
@@ -317,4 +309,157 @@ body {
     font-weight: 700;
     cursor: pointer;
     box-shadow: 0 4px 0px #C75B7A;
+}
+
+/* --- Vista de Favoritos: lista de renglones --- */
+.notes-grid.list-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.favorite-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 18px 28px;
+    border-radius: 999px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.favorite-row .fav-number {
+    font-size: 22px;
+    font-weight: 800;
+    min-width: 28px;
+    text-align: center;
+}
+
+.favorite-row .fav-text {
+    flex: 1;
+}
+
+.favorite-row .fav-text h3 {
+    margin: 0 0 2px 0;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.favorite-row .fav-text p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.favorite-row .btn-unfav {
+    background: rgba(255, 255, 255, 0.25);
+    border: none;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.favorite-row .btn-unfav:hover {
+    background: rgba(255, 255, 255, 0.45);
+}
+
+/* Grid de Categorías en 2x2 */
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.category-card {
+    border-radius: 24px;
+    padding: 30px 20px;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.category-card h3 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #2c2c2c;
+    margin: 0;
+}
+
+.category-icon {
+    font-size: 2rem;
+}
+
+.category-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+}
+
+/* =========================================================
+   REGLAS PARA MODO PANTALLA COMPLETA (Categorías, Favoritos, Papelera)
+   ========================================================= */
+
+.app-container.full-screen-mode .sidebar,
+.app-container.full-screen-mode .greeting-header,
+.app-container.full-screen-mode .top-cards,
+.app-container.full-screen-mode .section-title,
+.app-container.full-screen-mode .btn-back-home,
+.app-container.full-screen-mode header {
+    display: none !important;
+}
+
+.app-container.full-screen-mode .main-content {
+    width: 100%;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Cabecera superior en pantallas secundarias */
+.fullscreen-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 25px;
+}
+
+.fullscreen-header h2 {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-light);
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Botón Volver estilo píldora */
+.fullscreen-header .btn-back {
+    background-color: #FFFFFF;
+    color: #1E3A8A;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fullscreen-header .btn-back:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+}
+
+/* Corrección para asegurar que la cabecera se muestre en full-screen */
+.app-container.full-screen-mode .fullscreen-header {
+    display: flex !important;
 }
