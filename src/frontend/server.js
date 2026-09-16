@@ -1,32 +1,122 @@
-import { createClient } from '@libsql/client';
-import express from 'express';
-import cors from 'cors';
+const express = require('express');
+const path = require('path');
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
-// Conexión a tu base de datos en Turso
-const db = createClient({
-    url: process.env.TURSO_DATABASE_URL,
-    authToken: process.env.TURSO_AUTH_TOKEN,
+// Configuración de Swagger
+const swaggerOptions = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'Notebook API',
+            version: '1.0.0',
+            description: 'Documentación interactiva de la API de Notas'
+        },
+        servers: [
+            {
+                url: 'http://localhost:8000/api'
+            }
+        ],
+        paths: {
+            '/notes': {
+                get: {
+                    summary: 'Obtener todas las notas',
+                    responses: {
+                        '200': {
+                            description: 'Lista de notas obtenida con éxito'
+                        }
+                    }
+                },
+                post: {
+                    summary: 'Crear una nueva nota',
+                    responses: {
+                        '201': {
+                            description: 'Nota creada con éxito'
+                        }
+                    }
+                }
+            }
+        }
+    },
+    apis: [path.join(__dirname, '*.js')]
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// Rutas de la API
+app.get('/api/notes', (req, res) => {
+    res.json([
+        { id: 1, title: 'Nota de prueba', content: 'Funciona Swagger', color: 'card-peach' }
+    ]);
 });
 
-// Endpoint para guardar una nueva nota
-app.post('/api/notes', async (req, res) => {
-    const { title, content, color } = req.body;
+app.post('/api/notes', (req, res) => {
+    res.status(201).json({ message: 'Nota guardada' });
+});
 
-    try {
-        const result = await db.execute({
-            sql: 'INSERT INTO notes (title, content, color, date) VALUES (?, ?, ?, ?)',
-            args: [title, content, color, new Date().toISOString()],
-        });
+// Iniciar servidor
+const PORT = 8000;
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Swagger disponible en http://localhost:${PORT}/docs`);
+});
 
-        res.status(201).json({ success: true, id: Number(result.lastInsertRowid) });
-    } catch (error) {
-        console.error('Error al insertar en Turso:', error);
-        res.status(500).json({ error: 'Error al guardar la nota' });
+const swaggerSpec = {
+    openapi: '3.0.0',
+    info: {
+        title: 'Notebook API',
+        version: '1.0.0',
+        description: 'Documentación interactiva de la API de Notas'
+    },
+    servers: [
+        {
+            url: 'http://localhost:8000/api'
+        }
+    ],
+    paths: {
+        '/notes': {
+            get: {
+                summary: 'Obtener todas las notas activas',
+                responses: { '200': { description: 'Lista de notas' } }
+            },
+            post: {
+                summary: 'Crear una nueva nota',
+                responses: { '201': { description: 'Nota creada' } }
+            }
+        },
+        '/favorites': {
+            get: {
+                summary: 'Obtener notas favoritas',
+                responses: { '200': { description: 'Lista de favoritas' } }
+            }
+        },
+        '/trash': {
+            get: {
+                summary: 'Obtener notas en la papelera',
+                responses: { '200': { description: 'Lista de papelera' } }
+            }
+        },
+        '/notes/{id}/favorite': {
+            put: {
+                summary: 'Marcar o desmarcar como favorita',
+                responses: { '200': { description: 'Estado actualizado' } }
+            }
+        },
+        '/notes/{id}/trash': {
+            put: {
+                summary: 'Mover a la papelera o restaurar',
+                responses: { '200': { description: 'Estado actualizado' } }
+            }
+        },
+        '/notes/{id}': {
+            delete: {
+                summary: 'Eliminar nota permanentemente',
+                responses: { '200': { description: 'Nota eliminada' } }
+            }
+        }
     }
-});
-
-app.listen(3000, () => console.log('Servidor corriendo en puerto 3000'));
+};

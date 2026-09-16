@@ -407,49 +407,53 @@ body {
    REGLAS PARA MODO PANTALLA COMPLETA (Categorías, Favoritos, Papelera)
    ========================================================= */
 
+/* Oculta los elementos del inicio */
 .app-container.full-screen-mode .sidebar,
 .app-container.full-screen-mode .greeting-header,
 .app-container.full-screen-mode .top-cards,
 .app-container.full-screen-mode .section-title,
-.app-container.full-screen-mode .btn-back-home,
-.app-container.full-screen-mode header {
+.app-container.full-screen-mode .btn-back-home {
     display: none !important;
 }
 
+/* Alineación general del contenedor en pantalla completa */
 .app-container.full-screen-mode .main-content {
     width: 100%;
-    padding: 40px;
+    height: 100vh;
+    padding: 50px 60px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    box-sizing: border-box;
 }
 
-/* Cabecera superior en pantallas secundarias */
+/* Cabecera: Título a la izquierda, Botón a la derecha */
 .fullscreen-header {
-    display: flex;
+    display: flex !important;
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    margin-bottom: 25px;
+    margin-bottom: 40px;
 }
 
 .fullscreen-header h2 {
-    font-size: 32px;
+    font-size: 38px;
     font-weight: 700;
     color: var(--text-light);
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-/* Botón Volver estilo píldora */
+/* Botón Volver */
 .fullscreen-header .btn-back {
     background-color: #FFFFFF;
     color: #1E3A8A;
     font-size: 16px;
     font-weight: 700;
-    padding: 10px 24px;
+    padding: 10px 26px;
     border: none;
     border-radius: 999px;
     cursor: pointer;
+    text-decoration: none;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -459,7 +463,143 @@ body {
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
 }
 
-/* Corrección para asegurar que la cabecera se muestre en full-screen */
-.app-container.full-screen-mode .fullscreen-header {
-    display: flex !important;
+/* Grid de Categorías 2x2 uniforme */
+.categories-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 25px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.category-card {
+    border-radius: 28px;
+    padding: 35px 20px;
+    min-height: 170px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+}
+
+.category-card h3 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #2c2c2c;
+    margin: 0;
+}
+
+.category-icon {
+    font-size: 2.6rem;
+}
+
+.category-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+}
+
+/* =========================================================
+   ESTILOS PARA LA PAPELERA
+   ========================================================= */
+
+.trash-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.trash-card {
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 20px;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(5px);
+    color: var(--text-dark);
+}
+
+.trash-card-info h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+}
+
+.trash-card-info p {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+}
+
+.trash-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-restore {
+    background-color: var(--matcha);
+    color: #FFF;
+    border: none;
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 3px 0px #8A9A40;
+    transition: transform 0.1s;
+}
+
+.btn-delete-perm {
+    background-color: var(--pink);
+    color: #FFF;
+    border: none;
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 3px 0px #C75B7A;
+    transition: transform 0.1s;
+}
+
+.btn-restore:hover,
+.btn-delete-perm:hover {
+    transform: translateY(-2px);
+}
+
+/* Mensaje cuando la papelera esté vacía */
+.empty-msg {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-top: 40px;
+    opacity: 0.9;
+}
+
+/* =========================================================
+   FORZAR COLORES PASTEL EN TARJETAS DE NOTAS
+   ========================================================= */
+
+.notes-grid .note-card.card-peach,
+.note-card.card-peach,
+div.card-peach {
+    background-color: #FFEADB !important;
+}
+
+.notes-grid .note-card.card-lavender,
+.note-card.card-lavender,
+div.card-lavender {
+    background-color: #F1E5FF !important;
+}
+
+.notes-grid .note-card.card-mint,
+.note-card.card-mint,
+div.card-mint {
+    background-color: #E2F6E9 !important;
 }

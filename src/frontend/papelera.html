@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Categorías</title>
+    <title>Papelera de Reciclaje</title>
     <link rel="stylesheet" href="./styles.css">
 </head>
 
@@ -12,15 +12,16 @@
     <div class="app-container full-screen-mode">
         <main class="main-content">
             <div class="fullscreen-header">
-                <h2>Categorías</h2>
+                <h2>Papelera</h2>
                 <a href="./index.html" class="btn-back">← Volver</a>
             </div>
 
-            <div class="categories-grid">
-                <!-- Se llena automáticamente con JS -->
+            <div id="trashGrid" class="trash-grid">
+                <!-- Se llena dinámicamente desde el JS -->
             </div>
         </main>
     </div>
+
     <script src="./script.js"></script>
 </body>
 

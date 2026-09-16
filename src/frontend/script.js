@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Configuración de la API local
     const API_URL = 'http://127.0.0.1:8000/api';
 
-    // 2. Detección automática de la vista basada en la URL física del navegador
+    // Detección automática de la vista
     let currentView = 'notes';
     const path = window.location.pathname;
 
@@ -16,17 +15,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let categoryFilter = null;
 
-    // 3. Elementos del DOM
-    const notesGrid = document.querySelector('.notes-grid');
-    const sectionTitle = document.querySelector('.section-title');
+    // Normalizador de clases de color
+    function getColorClass(colorName) {
+        if (!colorName) return 'card-peach';
+        const str = String(colorName).toLowerCase().trim();
 
-    // Botones de navegación (en index.html)
-    const btnNewNote = document.querySelector('.card-new');
-    const btnFavs = document.querySelector('.card-favs');
-    const btnCategories = document.querySelector('.card-categories');
-    const btnTrash = document.querySelector('.trash-btn');
+        if (str.includes('mint') || str.includes('menta')) return 'card-mint';
+        if (str.includes('lavender') || str.includes('lavanda')) return 'card-lavender';
+        if (str.includes('peach') || str.includes('durazno')) return 'card-peach';
+        if (str.startsWith('card-')) return str;
 
-    // Modal y Formulario
+        return 'card-peach';
+    }
+
+    // Elementos del DOM
+    const notesGrid = document.querySelector('.notes-grid') || document.querySelector('.categories-grid') || document.getElementById('trashGrid');
     const modal = document.getElementById('editor-modal');
     const btnSaveNote = document.getElementById('btn-save-note');
     const btnCancel = document.getElementById('btn-cancel');
@@ -35,15 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectColor = document.getElementById('note-color');
     const selectCategory = document.getElementById('note-category');
 
-    const FAVORITOS_PALETTE = [
-        { bg: '#F08C21', text: '#ffffff' },
-        { bg: '#F2D88F', text: '#5c4a1a' },
-        { bg: '#E36888', text: '#ffffff' },
-        { bg: '#6698CC', text: '#ffffff' },
-        { bg: '#B4B534', text: '#ffffff' }
-    ];
+    // Botones de navegación
+    const btnNewNote = document.querySelector('.card-new');
+    const btnFavs = document.querySelector('.card-favs');
+    const btnCategories = document.querySelector('.card-categories');
+    const btnTrash = document.querySelector('.trash-btn');
 
-    // 4. Peticiones HTTP a FastAPI
+    // Petición genérica a la API
     async function fetchAPI(endpoint, method = 'GET', body = null) {
         try {
             const options = {
@@ -53,32 +54,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (body) options.body = JSON.stringify(body);
 
             const response = await fetch(`${API_URL}${endpoint}`, options);
-            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+            if (!response.ok) {
+                console.error(`Error HTTP ${response.status} en ${endpoint}`);
+                return null;
+            }
             return await response.json();
         } catch (err) {
-            console.error(`Error en petición ${endpoint}:`, err);
+            console.error(`Error de conexión con la API (${endpoint}):`, err);
             return null;
         }
     }
 
-    // 5. Cargar datos según la vista
+    // Cargar la vista actual
     async function loadCurrentView() {
         if (!notesGrid) return;
-
-        notesGrid.className = 'notes-grid';
-        notesGrid.innerHTML = '<p style="color: white; font-weight: 600;">Cargando...</p>';
 
         if (currentView === 'categories') {
             renderCategories();
             return;
         }
 
-        // Consultamos siempre el endpoint principal /notes o /trash
+        notesGrid.className = currentView === 'favorites' ? 'notes-grid list-mode' : (currentView === 'trash' ? 'trash-grid' : 'notes-grid');
+        notesGrid.innerHTML = '<p style="color: white; font-weight: 600;">Cargando notas de la base de datos...</p>';
+
         const endpoint = (currentView === 'trash') ? '/trash' : '/notes';
         const data = await fetchAPI(endpoint);
-        let items = data || [];
 
-        // Filtrado dinámico según la vista actual
+        console.log('Datos recibidos de la BD:', data); // Diagnóstico en consola
+
+        let items = Array.isArray(data) ? data : [];
+
         if (currentView === 'favorites') {
             items = items.filter(item => item.is_favorite === true || item.favorite === true);
         } else if (currentView === 'notes' && categoryFilter) {
@@ -88,61 +93,71 @@ document.addEventListener('DOMContentLoaded', () => {
         renderNotes(items);
     }
 
-    // 6. Renderizado de notas y tarjetas
+    // Renderizar tarjetas
     function renderNotes(items) {
         notesGrid.innerHTML = '';
-
-        if (currentView === 'favorites') {
-            renderFavoritesList(items);
-            return;
-        }
 
         if (items.length === 0) {
             const mensaje = categoryFilter
                 ? `No hay notas en la categoría "${categoryFilter}".`
-                : `No hay notas para mostrar.`;
-            notesGrid.innerHTML = `<p style="color: white; font-weight: 600;">${mensaje}</p>`;
+                : (currentView === 'trash' ? 'La papelera está vacía.' : 'No hay notas para mostrar.');
+            notesGrid.innerHTML = `<p style="color: white; font-weight: 600; font-size: 18px;" class="empty-msg">${mensaje}</p>`;
             return;
         }
 
         items.forEach(item => {
             const card = document.createElement('article');
-            card.className = `note-card ${item.color || 'card-peach'}`;
-
             const isTrash = currentView === 'trash';
-            const iconsHTML = isTrash
-                ? `<button class="btn-restore" title="Restaurar nota">🔄</button>
-                   <button class="btn-delete-forever" title="Eliminar definitivamente">❌</button>`
-                : `<button class="btn-fav" title="Favorito">⭐</button>
-                   <button class="btn-delete" title="Mover a Papelera">🗑️</button>`;
+            const colorClass = getColorClass(item.color);
 
-            card.innerHTML = `
-                <div class="card-header-icons">${iconsHTML}</div>
-                <div class="card-body">
-                    <h3>${item.title}</h3>
-                    <p>${item.content}</p>
-                </div>
-                <div class="card-footer">
-                    <span>📁 ${item.category || 'General'}</span>
-                </div>
-            `;
+            card.className = isTrash ? 'trash-card' : `note-card ${colorClass}`;
 
             if (isTrash) {
+                card.innerHTML = `
+                    <div class="trash-card-info">
+                        <h3>${item.title || 'Sin título'}</h3>
+                        <p>${item.content || ''}</p>
+                    </div>
+                    <div class="trash-actions">
+                        <button class="btn-restore">🔄 Restaurar</button>
+                        <button class="btn-delete-perm">❌ Eliminar</button>
+                    </div>
+                `;
+
                 card.querySelector('.btn-restore')?.addEventListener('click', async () => {
-                    await fetchAPI('/notes', 'POST', item);
-                    await fetchAPI(`/notes/${item.id}`, 'DELETE');
+                    await fetchAPI(`/notes/${item.id}/trash?is_trash=false`, 'PUT');
                     loadCurrentView();
                 });
 
-                card.querySelector('.btn-delete-forever')?.addEventListener('click', async () => {
-                    if (confirm(`¿Eliminar "${item.title}" definitivamente?`)) {
+                card.querySelector('.btn-delete-perm')?.addEventListener('click', async () => {
+                    if (confirm(`¿Eliminar definitivamente?`)) {
                         await fetchAPI(`/notes/${item.id}`, 'DELETE');
                         loadCurrentView();
                     }
                 });
             } else {
+                card.innerHTML = `
+                    <div class="card-header-icons">
+                        <button class="btn-fav" title="Favorito">⭐</button>
+                        <button class="btn-delete" title="Mover a Papelera">🗑️</button>
+                    </div>
+                    <div class="card-body">
+                        <h3>${item.title || 'Sin título'}</h3>
+                        <p>${item.content || ''}</p>
+                    </div>
+                    <div class="card-footer">
+                        <span>📁 ${item.category || 'General'}</span>
+                    </div>
+                `;
+
+                card.querySelector('.btn-fav')?.addEventListener('click', async () => {
+                    const isFav = item.is_favorite || item.favorite;
+                    await fetchAPI(`/notes/${item.id}/favorite?is_favorite=${!isFav}`, 'PUT');
+                    loadCurrentView();
+                });
+
                 card.querySelector('.btn-delete')?.addEventListener('click', async () => {
-                    await fetchAPI(`/notes/${item.id}/trash`, 'PUT');
+                    await fetchAPI(`/notes/${item.id}/trash?is_trash=true`, 'PUT');
                     loadCurrentView();
                 });
             }
@@ -151,44 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderFavoritesList(items) {
-        notesGrid.className = 'notes-grid list-mode';
-
-        if (items.length === 0) {
-            notesGrid.innerHTML = `<p style="color: white; font-weight: 600;">No hay notas en Favoritos.</p>`;
-            return;
-        }
-
-        items.forEach((item, index) => {
-            const paletteColor = FAVORITOS_PALETTE[index % FAVORITOS_PALETTE.length];
-            const row = document.createElement('article');
-            row.className = 'favorite-row';
-            row.style.background = paletteColor.bg;
-            row.style.color = paletteColor.text;
-
-            row.innerHTML = `
-                <span class="fav-number">${index + 1}</span>
-                <div class="fav-text">
-                    <h3>${item.title}</h3>
-                    <p>${item.content}</p>
-                </div>
-                <button class="btn-unfav" title="Quitar de Favoritos">💔</button>
-            `;
-
-            row.querySelector('.btn-unfav')?.addEventListener('click', async () => {
-                await fetchAPI(`/notes/${item.id}/favorite?is_favorite=false`, 'PUT');
-                loadCurrentView();
-            });
-
-            notesGrid.appendChild(row);
-        });
-    }
-
     function renderCategories() {
-        if (sectionTitle) sectionTitle.textContent = '';
-        notesGrid.className = 'categories-grid';
         notesGrid.innerHTML = '';
-
         const categoriesData = [
             { name: 'General', color: 'var(--butter)', icon: '📁' },
             { name: 'Trabajo', color: 'var(--pink)', icon: '💼' },
@@ -200,28 +179,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('article');
             card.className = 'category-card';
             card.style.backgroundColor = cat.color;
-
-            card.innerHTML = `
-                <span class="category-icon">${cat.icon}</span>
-                <h3>${cat.name}</h3>
-            `;
-
+            card.innerHTML = `<span class="category-icon">${cat.icon}</span><h3>${cat.name}</h3>`;
             card.addEventListener('click', () => {
-                currentView = 'notes';
-                categoryFilter = cat.name;
-                loadCurrentView();
+                window.location.href = `./index.html?category=${encodeURIComponent(cat.name)}`;
             });
-
             notesGrid.appendChild(card);
         });
     }
 
-    // 7. Eventos de UI
+    // Verificar filtros URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const catParam = urlParams.get('category');
+    if (catParam) categoryFilter = catParam;
+
+    // Guardar Nota
     if (btnSaveNote) {
         btnSaveNote.addEventListener('click', async () => {
             const title = inputTitle.value.trim();
             const content = inputContent.value.trim();
-            const color = selectColor.value;
+            const color = selectColor ? selectColor.value : 'card-peach';
             const category = selectCategory ? selectCategory.value : 'General';
 
             if (!title || !content) {
@@ -229,19 +205,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            await fetchAPI('/notes', 'POST', { title, content, color, category });
+            const payload = { title, content, color, category };
+            console.log('Enviando a BD:', payload);
 
-            if (modal) modal.classList.remove('active');
-            currentView = 'notes';
-            categoryFilter = null;
-            loadCurrentView();
+            const res = await fetchAPI('/notes', 'POST', payload);
+
+            if (res) {
+                if (modal) modal.classList.remove('active');
+                inputTitle.value = '';
+                inputContent.value = '';
+                loadCurrentView();
+            } else {
+                alert('Ocurrió un error al guardar en la base de datos.');
+            }
         });
     }
 
     if (btnNewNote) {
         btnNewNote.addEventListener('click', () => {
-            if (inputTitle) inputTitle.value = '';
-            if (inputContent) inputContent.value = '';
             if (modal) modal.classList.add('active');
         });
     }
@@ -250,30 +231,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btnCancel.addEventListener('click', () => modal.classList.remove('active'));
     }
 
-    if (btnFavs) {
-        btnFavs.addEventListener('click', () => {
-            currentView = 'favorites';
-            categoryFilter = null;
-            loadCurrentView();
-        });
-    }
+    if (btnFavs) btnFavs.addEventListener('click', () => window.location.href = './favoritos.html');
+    if (btnTrash) btnTrash.addEventListener('click', () => window.location.href = './papelera.html');
+    if (btnCategories) btnCategories.addEventListener('click', () => window.location.href = './categorias.html');
 
-    if (btnTrash) {
-        btnTrash.addEventListener('click', () => {
-            currentView = 'trash';
-            categoryFilter = null;
-            loadCurrentView();
-        });
-    }
-
-    if (btnCategories) {
-        btnCategories.addEventListener('click', () => {
-            currentView = 'categories';
-            categoryFilter = null;
-            loadCurrentView();
-        });
-    }
-
-    // Inicializa la vista
+    // Carga inicial
     loadCurrentView();
 });

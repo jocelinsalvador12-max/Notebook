@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Favoritos - Notebook</title>
+    <title>Favoritos</title>
     <link rel="stylesheet" href="./styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,15 +13,15 @@
 
 <body class="bg-main">
     <div class="app-container full-screen-mode">
-
-        <header class="fullscreen-header">
-            <h2>Favoritos ⭐</h2>
-            <a href="./index.html" class="btn-back">← Volver</a>
-        </header>
-
-        <!-- El contenedor debe ir AQUÍ adentro -->
-        <main class="notes-grid list-mode"></main>
-
+        <main class="main-content">
+            <div class="fullscreen-header">
+                <h2>Categorías</h2>
+                <a href="./index.html" class="btn-back">← Volver</a>
+            </div>
+            <div class="categories-grid">
+                <!-- Renderizado dinámico desde script.js -->
+            </div>
+        </main>
     </div>
 
     <script type="module" src="./script.js"></script>
