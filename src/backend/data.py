@@ -1,5 +1,11 @@
 import requests
-from config import settings
+try:
+    from src.backend.config import settings
+except ImportError:
+    try:
+        from .config import settings
+    except ImportError:
+        from config import settings
 
 def query_turso(sql: str, args: list = None) -> dict:
     if args is None:

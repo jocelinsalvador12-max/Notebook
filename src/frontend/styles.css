@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+@import "tailwindcss";
 
 :root {
     --sky: #7FB9E6;

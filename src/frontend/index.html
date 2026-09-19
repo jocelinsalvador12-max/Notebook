@@ -34,57 +34,9 @@
             <!-- Título de Sección -->
             <h2 class="section-title">Tareas recientes</h2>
 
-            <!-- Cuadrícula de Tarjetas Completas estilo Celular -->
-            <div class="notes-grid">
-
-                <!-- Tarjeta 1 (Durazno) -->
-                <article class="note-card card-peach">
-                    <div class="card-header-icons">
-                        <button title="Fijar">📌</button>
-                        <button title="Editar">✏️</button>
-                        <button title="Eliminar">🗑️</button>
-                    </div>
-                    <div class="card-body">
-                        <h3>tema 2</h3>
-                        <p>Actualizar la interfaz gráfica y verificar la persistencia de datos en PostgreSQL.</p>
-                    </div>
-                    <div class="card-footer">
-                        <span>📅 Hace un momento</span>
-                    </div>
-                </article>
-
-                <!-- Tarjeta 2 (Lavanda) -->
-                <article class="note-card card-lavender">
-                    <div class="card-header-icons">
-                        <button title="Fijar">📌</button>
-                        <button title="Editar">✏️</button>
-                        <button title="Eliminar">🗑️</button>
-                    </div>
-                    <div class="card-body">
-                        <h3>tema 2</h3>
-                        <p>Revisar la configuración del servidor y probar los endpoints en la API.</p>
-                    </div>
-                    <div class="card-footer">
-                        <span>📅 Hace 2 min</span>
-                    </div>
-                </article>
-
-                <!-- Tarjeta 3 (Menta) -->
-                <article class="note-card card-mint">
-                    <div class="card-header-icons">
-                        <button title="Fijar">📌</button>
-                        <button title="Editar">✏️</button>
-                        <button title="Eliminar">🗑️</button>
-                    </div>
-                    <div class="card-body">
-                        <h3>Proyecto Frontend</h3>
-                        <p>Diseñar la vista de notas arrastrables y agregar animaciones suaves.</p>
-                    </div>
-                    <div class="card-footer">
-                        <span>📅 Hace 5 min</span>
-                    </div>
-                </article>
-
+            <!-- Cuadrícula dinámicamente conectada a Turso DB -->
+            <div id="notes-container" class="notes-grid">
+                <!-- Las tarjetas registradas en la base de datos se dibujan aquí automáticamente -->
             </div>
         </main>
     </div>
@@ -122,8 +74,8 @@
         </div>
     </div>
 
-    <!-- Enlace al archivo JavaScript -->
-    <script src="script.js"></script>
+    <!-- Enlace al script de integración -->
+    <script src="./script.js"></script>
 </body>
 
 </html>

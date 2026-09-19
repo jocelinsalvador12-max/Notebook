@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = 'http://127.0.0.1:8000/api';
+    // Apunta al servidor Node.js en el puerto 5080
+    const API_URL = 'http://localhost:5080/api';
 
-    // Detección automática de la vista
+    // Detección automática de la vista según el archivo HTML
     let currentView = 'notes';
     const path = window.location.pathname;
 
@@ -29,7 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Elementos del DOM
-    const notesGrid = document.querySelector('.notes-grid') || document.querySelector('.categories-grid') || document.getElementById('trashGrid');
+    const notesGrid = document.querySelector('.notes-grid') || 
+                      document.querySelector('.categories-grid') || 
+                      document.getElementById('trashGrid') || 
+                      document.getElementById('notes-container');
     const modal = document.getElementById('editor-modal');
     const btnSaveNote = document.getElementById('btn-save-note');
     const btnCancel = document.getElementById('btn-cancel');
@@ -74,19 +78,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        notesGrid.className = currentView === 'favorites' ? 'notes-grid list-mode' : (currentView === 'trash' ? 'trash-grid' : 'notes-grid');
-        notesGrid.innerHTML = '<p style="color: white; font-weight: 600;">Cargando notas de la base de datos...</p>';
+        notesGrid.className = currentView === 'favorites' 
+            ? 'notes-grid' 
+            : (currentView === 'trash' ? 'trash-grid' : 'notes-grid');
+        notesGrid.innerHTML = '<p style="color: white; font-weight: 600;">Cargando notas de Turso DB...</p>';
 
-        const endpoint = (currentView === 'trash') ? '/trash' : '/notes';
+        const endpoint = (currentView === 'trash') 
+            ? '/trash' 
+            : (currentView === 'favorites' ? '/favorites' : '/notes');
+
         const data = await fetchAPI(endpoint);
-
-        console.log('Datos recibidos de la BD:', data); // Diagnóstico en consola
-
         let items = Array.isArray(data) ? data : [];
 
-        if (currentView === 'favorites') {
-            items = items.filter(item => item.is_favorite === true || item.favorite === true);
-        } else if (currentView === 'notes' && categoryFilter) {
+        if (currentView === 'notes' && categoryFilter) {
             items = items.filter(item => item.category === categoryFilter);
         }
 
@@ -98,9 +102,14 @@ document.addEventListener('DOMContentLoaded', () => {
         notesGrid.innerHTML = '';
 
         if (items.length === 0) {
-            const mensaje = categoryFilter
-                ? `No hay notas en la categoría "${categoryFilter}".`
-                : (currentView === 'trash' ? 'La papelera está vacía.' : 'No hay notas para mostrar.');
+            let mensaje = 'No hay notas para mostrar.';
+            if (categoryFilter) {
+                mensaje = `No hay notas en la categoría "${categoryFilter}".`;
+            } else if (currentView === 'trash') {
+                mensaje = 'La papelera está vacía.';
+            } else if (currentView === 'favorites') {
+                mensaje = 'No tienes notas marcadas como favoritas aún.';
+            }
             notesGrid.innerHTML = `<p style="color: white; font-weight: 600; font-size: 18px;" class="empty-msg">${mensaje}</p>`;
             return;
         }
@@ -109,18 +118,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('article');
             const isTrash = currentView === 'trash';
             const colorClass = getColorClass(item.color);
+            const isFav = item.is_favorite === 1 || item.is_favorite === true;
 
             card.className = isTrash ? 'trash-card' : `note-card ${colorClass}`;
 
             if (isTrash) {
                 card.innerHTML = `
                     <div class="trash-card-info">
-                        <h3>${item.title || 'Sin título'}</h3>
-                        <p>${item.content || ''}</p>
+                        <h3>${escapeHTML(item.title || 'Sin título')}</h3>
+                        <p>${escapeHTML(item.content || '')}</p>
                     </div>
                     <div class="trash-actions">
-                        <button class="btn-restore">🔄 Restaurar</button>
-                        <button class="btn-delete-perm">❌ Eliminar</button>
+                        <button class="btn-restore" title="Restaurar nota">🔄 Restaurar</button>
+                        <button class="btn-delete-perm" title="Eliminar definitivamente">❌ Eliminar</button>
                     </div>
                 `;
 
@@ -130,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 card.querySelector('.btn-delete-perm')?.addEventListener('click', async () => {
-                    if (confirm(`¿Eliminar definitivamente?`)) {
+                    if (confirm(`¿Eliminar permanentemente "${item.title || 'esta nota'}"?`)) {
                         await fetchAPI(`/notes/${item.id}`, 'DELETE');
                         loadCurrentView();
                     }
@@ -138,20 +148,21 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 card.innerHTML = `
                     <div class="card-header-icons">
-                        <button class="btn-fav" title="Favorito">⭐</button>
+                        <button class="btn-fav" title="${isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
+                            ${isFav ? '⭐' : '☆'}
+                        </button>
                         <button class="btn-delete" title="Mover a Papelera">🗑️</button>
                     </div>
                     <div class="card-body">
-                        <h3>${item.title || 'Sin título'}</h3>
-                        <p>${item.content || ''}</p>
+                        <h3>${escapeHTML(item.title || 'Sin título')}</h3>
+                        <p>${escapeHTML(item.content || '')}</p>
                     </div>
                     <div class="card-footer">
-                        <span>📁 ${item.category || 'General'}</span>
+                        <span>📁 ${escapeHTML(item.category || 'General')}</span>
                     </div>
                 `;
 
                 card.querySelector('.btn-fav')?.addEventListener('click', async () => {
-                    const isFav = item.is_favorite || item.favorite;
                     await fetchAPI(`/notes/${item.id}/favorite?is_favorite=${!isFav}`, 'PUT');
                     loadCurrentView();
                 });
@@ -166,25 +177,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderCategories() {
-        notesGrid.innerHTML = '';
-        const categoriesData = [
+    async function renderCategories() {
+        notesGrid.innerHTML = '<p style="color: white; font-weight: 600;">Cargando categorías...</p>';
+        const defaultCategories = [
             { name: 'General', color: 'var(--butter)', icon: '📁' },
             { name: 'Trabajo', color: 'var(--pink)', icon: '💼' },
             { name: 'Escuela', color: 'var(--matcha)', icon: '🎓' },
             { name: 'Casa', color: 'var(--tangerine)', icon: '🏠' }
         ];
 
+        const dbCategories = await fetchAPI('/categories');
+        const categoriesData = (Array.isArray(dbCategories) && dbCategories.length > 0)
+            ? dbCategories.map(c => ({
+                name: c.name,
+                color: c.color || 'var(--butter)',
+                icon: c.icon || '📁'
+            }))
+            : defaultCategories;
+
+        notesGrid.innerHTML = '';
         categoriesData.forEach(cat => {
             const card = document.createElement('article');
             card.className = 'category-card';
             card.style.backgroundColor = cat.color;
-            card.innerHTML = `<span class="category-icon">${cat.icon}</span><h3>${cat.name}</h3>`;
+            card.innerHTML = `<span class="category-icon">${cat.icon}</span><h3>${escapeHTML(cat.name)}</h3>`;
             card.addEventListener('click', () => {
                 window.location.href = `./index.html?category=${encodeURIComponent(cat.name)}`;
             });
             notesGrid.appendChild(card);
         });
+    }
+
+    // Función auxiliar para escapar texto HTML
+    function escapeHTML(str) {
+        return String(str || '').replace(/[&<>"']/g, match => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[match]));
     }
 
     // Verificar filtros URL
@@ -195,8 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Guardar Nota
     if (btnSaveNote) {
         btnSaveNote.addEventListener('click', async () => {
-            const title = inputTitle.value.trim();
-            const content = inputContent.value.trim();
+            const title = inputTitle ? inputTitle.value.trim() : '';
+            const content = inputContent ? inputContent.value.trim() : '';
             const color = selectColor ? selectColor.value : 'card-peach';
             const category = selectCategory ? selectCategory.value : 'General';
 
@@ -206,21 +238,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const payload = { title, content, color, category };
-            console.log('Enviando a BD:', payload);
 
             const res = await fetchAPI('/notes', 'POST', payload);
 
             if (res) {
                 if (modal) modal.classList.remove('active');
-                inputTitle.value = '';
-                inputContent.value = '';
+                if (inputTitle) inputTitle.value = '';
+                if (inputContent) inputContent.value = '';
                 loadCurrentView();
             } else {
-                alert('Ocurrió un error al guardar en la base de datos.');
+                alert('Ocurrió un error al guardar en Turso DB.');
             }
         });
     }
 
+    // Apertura y cierre del modal
     if (btnNewNote) {
         btnNewNote.addEventListener('click', () => {
             if (modal) modal.classList.add('active');
@@ -231,6 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnCancel.addEventListener('click', () => modal.classList.remove('active'));
     }
 
+    // Navegación
     if (btnFavs) btnFavs.addEventListener('click', () => window.location.href = './favoritos.html');
     if (btnTrash) btnTrash.addEventListener('click', () => window.location.href = './papelera.html');
     if (btnCategories) btnCategories.addEventListener('click', () => window.location.href = './categorias.html');
