@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Apunta al servidor Node.js en el puerto 5080
+    // Apunta al servidor Node.js en el puerto 5080 (o proxy)
     const API_URL = 'http://localhost:5080/api';
 
-    // Detección automática de la vista según el archivo HTML
+    // Detección automática de la vista según la URL
     let currentView = 'notes';
     const path = window.location.pathname;
 
@@ -14,19 +14,44 @@ document.addEventListener('DOMContentLoaded', () => {
         currentView = 'categories';
     }
 
-    let categoryFilter = null;
+    // Estado local para búsqueda y filtros reactivos en tiempo real
+    let allNotesData = [];
+    let currentCategoryFilter = 'All';
+    let currentSearchQuery = '';
 
-    // Normalizador de clases de color
-    function getColorClass(colorName) {
-        if (!colorName) return 'card-peach';
-        const str = String(colorName).toLowerCase().trim();
+    // Mapeo de colores a la paleta oficial de la Imagen 2
+    function getColorClass(colorName, categoryName) {
+        if (colorName) {
+            const str = String(colorName).toLowerCase().trim();
+            if (str.includes('lavender') || str.includes('lavanda')) return 'card-lavender';
+            if (str.includes('blue') || str.includes('azul') || str.includes('sky')) return 'card-blue';
+            if (str.includes('mint') || str.includes('menta') || str.includes('green') || str.includes('matcha')) return 'card-mint';
+            if (str.includes('yellow') || str.includes('amarillo') || str.includes('butter')) return 'card-yellow';
+            if (str.includes('pink') || str.includes('rosa')) return 'card-pink';
+            if (str.includes('peach') || str.includes('durazno')) return 'card-pink';
+            if (str.startsWith('card-')) return str;
+        }
 
-        if (str.includes('mint') || str.includes('menta')) return 'card-mint';
-        if (str.includes('lavender') || str.includes('lavanda')) return 'card-lavender';
-        if (str.includes('peach') || str.includes('durazno')) return 'card-peach';
-        if (str.startsWith('card-')) return str;
+        // Si no tiene color asignado, asignar según la categoría de la Imagen 1
+        if (categoryName) {
+            const cat = String(categoryName).toLowerCase();
+            if (cat.includes('project')) return 'card-yellow';
+            if (cat.includes('business') || cat.includes('trabajo')) return 'card-pink';
+            if (cat.includes('personal') || cat.includes('casa')) return 'card-blue';
+            if (cat.includes('escuela') || cat.includes('general')) return 'card-mint';
+        }
 
-        return 'card-peach';
+        return 'card-lavender';
+    }
+
+    // Formateador de fecha similar al estilo de la Imagen 1 ("23 June, 2017")
+    function formatNoteDate(dateVal, id) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        let d = dateVal ? new Date(dateVal) : new Date();
+        if (isNaN(d.getTime())) {
+            d = new Date();
+        }
+        return `${d.getDate()} ${months[d.getMonth()]}, ${d.getFullYear()}`;
     }
 
     // Elementos del DOM
@@ -34,21 +59,28 @@ document.addEventListener('DOMContentLoaded', () => {
                       document.querySelector('.categories-grid') || 
                       document.getElementById('trashGrid') || 
                       document.getElementById('notes-container');
+
+    const searchInput = document.getElementById('search-input');
+    const searchClearBtn = document.getElementById('search-clear-btn');
+    const filterTabs = document.querySelectorAll('.filter-tab');
+    const categoryTagItems = document.querySelectorAll('.category-tag-item');
+    const filterFeedback = document.getElementById('filter-feedback');
+
     const modal = document.getElementById('editor-modal');
     const btnSaveNote = document.getElementById('btn-save-note');
     const btnCancel = document.getElementById('btn-cancel');
+    const modalCloseIcon = document.getElementById('modal-close-icon');
     const inputTitle = document.getElementById('note-title');
     const inputContent = document.getElementById('note-content');
-    const selectColor = document.getElementById('note-color');
+    const inputColor = document.getElementById('note-color');
     const selectCategory = document.getElementById('note-category');
+    const colorSwatches = document.querySelectorAll('.swatch-btn');
 
-    // Botones de navegación
-    const btnNewNote = document.querySelector('.card-new');
-    const btnFavs = document.querySelector('.card-favs');
-    const btnCategories = document.querySelector('.card-categories');
-    const btnTrash = document.querySelector('.trash-btn');
+    // Botones de acción / apertura modal
+    const btnAddNote = document.getElementById('btn-add-note') || document.querySelector('.card-new');
+    const btnSidebarAddNew = document.getElementById('btn-sidebar-add-new');
 
-    // Petición genérica a la API
+    // Petición genérica a la API de Turso DB
     async function fetchAPI(endpoint, method = 'GET', body = null) {
         try {
             const options = {
@@ -69,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Cargar la vista actual
+    // Cargar la vista actual desde el backend
     async function loadCurrentView() {
         if (!notesGrid) return;
 
@@ -78,47 +110,104 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        notesGrid.className = currentView === 'favorites' 
-            ? 'notes-grid' 
-            : (currentView === 'trash' ? 'trash-grid' : 'notes-grid');
-        notesGrid.innerHTML = '<p style="color: white; font-weight: 600;">Cargando notas de Turso DB...</p>';
+        notesGrid.innerHTML = '<p class="empty-msg">Cargando notas de Turso DB...</p>';
 
         const endpoint = (currentView === 'trash') 
             ? '/trash' 
             : (currentView === 'favorites' ? '/favorites' : '/notes');
 
         const data = await fetchAPI(endpoint);
-        let items = Array.isArray(data) ? data : [];
+        allNotesData = Array.isArray(data) ? data : [];
 
-        if (currentView === 'notes' && categoryFilter) {
-            items = items.filter(item => item.category === categoryFilter);
+        // Leer parámetro categoría desde la URL si existe
+        const urlParams = new URLSearchParams(window.location.search);
+        const catParam = urlParams.get('category');
+        if (catParam) {
+            currentCategoryFilter = catParam;
+            // Marcar el tab correspondiente
+            filterTabs.forEach(tab => {
+                if (tab.getAttribute('data-category').toLowerCase() === catParam.toLowerCase()) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
         }
 
-        renderNotes(items);
+        applyFiltersAndRender();
     }
 
-    // Renderizar tarjetas
+    // Filtrar y renderizar en base a categoría y búsqueda
+    function applyFiltersAndRender() {
+        if (!notesGrid) return;
+
+        let filtered = [...allNotesData];
+
+        // 1. Filtro por categoría con soporte para sinónimos/alias
+        if (currentCategoryFilter && currentCategoryFilter !== 'All') {
+            const filterCat = currentCategoryFilter.toLowerCase();
+            filtered = filtered.filter(item => {
+                const itemCat = (item.category || 'General').toLowerCase();
+                if (itemCat === filterCat) return true;
+                // Soporte para notas existentes en español / inglés
+                if (filterCat === 'business' && itemCat === 'trabajo') return true;
+                if (filterCat === 'trabajo' && itemCat === 'business') return true;
+                if (filterCat === 'personal' && itemCat === 'casa') return true;
+                return false;
+            });
+        }
+
+        // 2. Filtro por búsqueda en tiempo real
+        if (currentSearchQuery.trim()) {
+            const query = currentSearchQuery.trim().toLowerCase();
+            filtered = filtered.filter(item => {
+                const title = (item.title || '').toLowerCase();
+                const content = (item.content || '').toLowerCase();
+                const category = (item.category || '').toLowerCase();
+                return title.includes(query) || content.includes(query) || category.includes(query);
+            });
+        }
+
+        // Mostrar u ocultar mensaje de feedback
+        if (filterFeedback) {
+            if (currentSearchQuery.trim() || (currentCategoryFilter && currentCategoryFilter !== 'All')) {
+                const searchLabel = currentSearchQuery ? ` coincidencias para "${escapeHTML(currentSearchQuery)}"` : '';
+                const catLabel = currentCategoryFilter !== 'All' ? ` en ${escapeHTML(currentCategoryFilter)}` : '';
+                filterFeedback.textContent = `Mostrando ${filtered.length} nota(s)${catLabel}${searchLabel}`;
+                filterFeedback.style.display = 'inline-block';
+            } else {
+                filterFeedback.style.display = 'none';
+            }
+        }
+
+        renderNotes(filtered);
+    }
+
+    // Renderizar tarjetas con diseño idéntico a la Imagen 1
     function renderNotes(items) {
         notesGrid.innerHTML = '';
 
         if (items.length === 0) {
             let mensaje = 'No hay notas para mostrar.';
-            if (categoryFilter) {
-                mensaje = `No hay notas en la categoría "${categoryFilter}".`;
+            if (currentSearchQuery) {
+                mensaje = `No se encontraron notas para "${escapeHTML(currentSearchQuery)}".`;
+            } else if (currentCategoryFilter && currentCategoryFilter !== 'All') {
+                mensaje = `No hay notas en la categoría "${escapeHTML(currentCategoryFilter)}".`;
             } else if (currentView === 'trash') {
                 mensaje = 'La papelera está vacía.';
             } else if (currentView === 'favorites') {
                 mensaje = 'No tienes notas marcadas como favoritas aún.';
             }
-            notesGrid.innerHTML = `<p style="color: white; font-weight: 600; font-size: 18px;" class="empty-msg">${mensaje}</p>`;
+            notesGrid.innerHTML = `<p class="empty-msg">${mensaje}</p>`;
             return;
         }
 
         items.forEach(item => {
             const card = document.createElement('article');
             const isTrash = currentView === 'trash';
-            const colorClass = getColorClass(item.color);
+            const colorClass = getColorClass(item.color, item.category);
             const isFav = item.is_favorite === 1 || item.is_favorite === true;
+            const formattedDate = formatNoteDate(item.created_at || null, item.id);
 
             card.className = isTrash ? 'trash-card' : `note-card ${colorClass}`;
 
@@ -146,28 +235,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             } else {
+                // Diseño de tarjeta como en la Imagen 1: Fecha arriba, título con punto de color, texto, categoría y botones de acción
                 card.innerHTML = `
-                    <div class="card-header-icons">
-                        <button class="btn-fav" title="${isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
-                            ${isFav ? '⭐' : '☆'}
-                        </button>
-                        <button class="btn-delete" title="Mover a Papelera">🗑️</button>
+                    <div class="card-top-row">
+                        <span class="note-date">${formattedDate}</span>
+                        <div class="card-actions-quick">
+                            <button class="btn-fav ${isFav ? 'active' : ''}" title="${isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
+                                ${isFav ? '★' : '☆'}
+                            </button>
+                            <button class="btn-delete" title="Mover a Papelera">
+                                🗑️
+                            </button>
+                        </div>
                     </div>
-                    <div class="card-body">
+
+                    <div class="card-title-row">
+                        <span class="title-dot"></span>
                         <h3>${escapeHTML(item.title || 'Sin título')}</h3>
-                        <p>${escapeHTML(item.content || '')}</p>
                     </div>
-                    <div class="card-footer">
-                        <span>📁 ${escapeHTML(item.category || 'General')}</span>
+
+                    <div class="card-body-content">
+                        ${escapeHTML(item.content || '')}
+                    </div>
+
+                    <div class="card-bottom-row">
+                        <span class="category-badge">${escapeHTML(item.category || 'General')}</span>
                     </div>
                 `;
 
-                card.querySelector('.btn-fav')?.addEventListener('click', async () => {
+                card.querySelector('.btn-fav')?.addEventListener('click', async (e) => {
+                    e.stopPropagation();
                     await fetchAPI(`/notes/${item.id}/favorite?is_favorite=${!isFav}`, 'PUT');
                     loadCurrentView();
                 });
 
-                card.querySelector('.btn-delete')?.addEventListener('click', async () => {
+                card.querySelector('.btn-delete')?.addEventListener('click', async (e) => {
+                    e.stopPropagation();
                     await fetchAPI(`/notes/${item.id}/trash?is_trash=true`, 'PUT');
                     loadCurrentView();
                 });
@@ -177,20 +280,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Renderizar categorías
     async function renderCategories() {
-        notesGrid.innerHTML = '<p style="color: white; font-weight: 600;">Cargando categorías...</p>';
+        notesGrid.innerHTML = '<p class="empty-msg">Cargando categorías...</p>';
         const defaultCategories = [
-            { name: 'General', color: 'var(--butter)', icon: '📁' },
-            { name: 'Trabajo', color: 'var(--pink)', icon: '💼' },
-            { name: 'Escuela', color: 'var(--matcha)', icon: '🎓' },
-            { name: 'Casa', color: 'var(--tangerine)', icon: '🏠' }
+            { name: 'Projects', color: 'var(--pastel-yellow)', icon: '📁' },
+            { name: 'Business', color: 'var(--pastel-pink)', icon: '💼' },
+            { name: 'Personal', color: 'var(--pastel-blue)', icon: '⭐' },
+            { name: 'General', color: 'var(--pastel-mint)', icon: '📝' }
         ];
 
         const dbCategories = await fetchAPI('/categories');
         const categoriesData = (Array.isArray(dbCategories) && dbCategories.length > 0)
             ? dbCategories.map(c => ({
                 name: c.name,
-                color: c.color || 'var(--butter)',
+                color: c.color || 'var(--pastel-lavender)',
                 icon: c.icon || '📁'
             }))
             : defaultCategories;
@@ -208,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Función auxiliar para escapar texto HTML
+    // Escapar texto HTML
     function escapeHTML(str) {
         return String(str || '').replace(/[&<>"']/g, match => ({
             '&': '&amp;',
@@ -219,54 +323,133 @@ document.addEventListener('DOMContentLoaded', () => {
         }[match]));
     }
 
-    // Verificar filtros URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const catParam = urlParams.get('category');
-    if (catParam) categoryFilter = catParam;
+    // =========================================================
+    // EVENTOS DE BÚSQUEDA EN TIEMPO REAL (Imagen 1)
+    // =========================================================
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            currentSearchQuery = e.target.value;
+            if (searchClearBtn) {
+                searchClearBtn.style.display = currentSearchQuery.length > 0 ? 'inline-block' : 'none';
+            }
+            applyFiltersAndRender();
+        });
+    }
 
-    // Guardar Nota
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', () => {
+            if (searchInput) {
+                searchInput.value = '';
+                currentSearchQuery = '';
+                searchClearBtn.style.display = 'none';
+                applyFiltersAndRender();
+                searchInput.focus();
+            }
+        });
+    }
+
+    // =========================================================
+    // EVENTOS DE FILTRADO POR PESTAÑAS (All, Projects, Business, etc.)
+    // =========================================================
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            filterTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentCategoryFilter = tab.getAttribute('data-category') || 'All';
+            applyFiltersAndRender();
+        });
+    });
+
+    // Eventos al hacer clic en etiquetas del sidebar
+    categoryTagItems.forEach(tagItem => {
+        tagItem.addEventListener('click', () => {
+            const cat = tagItem.getAttribute('data-category');
+            if (cat) {
+                currentCategoryFilter = cat;
+                filterTabs.forEach(tab => {
+                    if (tab.getAttribute('data-category').toLowerCase() === cat.toLowerCase()) {
+                        tab.classList.add('active');
+                    } else {
+                        tab.classList.remove('active');
+                    }
+                });
+                applyFiltersAndRender();
+            }
+        });
+    });
+
+    // =========================================================
+    // SELECCIÓN DE COLOR PASTEL EN EL MODAL (Paleta Imagen 2)
+    // =========================================================
+    colorSwatches.forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            colorSwatches.forEach(s => s.classList.remove('selected'));
+            swatch.classList.add('selected');
+            if (inputColor) {
+                inputColor.value = swatch.getAttribute('data-color') || 'card-lavender';
+            }
+        });
+    });
+
+    // =========================================================
+    // MODAL DE CREACIÓN DE NOTA
+    // =========================================================
+    function openModal() {
+        if (modal) {
+            modal.classList.add('active');
+            if (inputTitle) inputTitle.focus();
+        }
+    }
+
+    function closeModal() {
+        if (modal) {
+            modal.classList.remove('active');
+            if (inputTitle) inputTitle.value = '';
+            if (inputContent) inputContent.value = '';
+        }
+    }
+
+    if (btnAddNote) btnAddNote.addEventListener('click', openModal);
+    if (btnSidebarAddNew) btnSidebarAddNew.addEventListener('click', openModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeModal);
+    if (modalCloseIcon) modalCloseIcon.addEventListener('click', closeModal);
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+    }
+
+    // Guardar Nota en Turso DB
     if (btnSaveNote) {
         btnSaveNote.addEventListener('click', async () => {
             const title = inputTitle ? inputTitle.value.trim() : '';
             const content = inputContent ? inputContent.value.trim() : '';
-            const color = selectColor ? selectColor.value : 'card-peach';
+            const color = inputColor ? inputColor.value : 'card-lavender';
             const category = selectCategory ? selectCategory.value : 'General';
 
             if (!title || !content) {
-                alert('Por favor completa el título y el contenido.');
+                alert('Por favor escribe un título y el contenido de la nota.');
                 return;
             }
 
             const payload = { title, content, color, category };
+            btnSaveNote.disabled = true;
+            btnSaveNote.textContent = 'Guardando...';
 
             const res = await fetchAPI('/notes', 'POST', payload);
 
+            btnSaveNote.disabled = false;
+            btnSaveNote.textContent = 'Guardar Nota';
+
             if (res) {
-                if (modal) modal.classList.remove('active');
-                if (inputTitle) inputTitle.value = '';
-                if (inputContent) inputContent.value = '';
+                closeModal();
                 loadCurrentView();
             } else {
-                alert('Ocurrió un error al guardar en Turso DB.');
+                alert('Ocurrió un error al guardar la nota en la base de datos.');
             }
         });
     }
-
-    // Apertura y cierre del modal
-    if (btnNewNote) {
-        btnNewNote.addEventListener('click', () => {
-            if (modal) modal.classList.add('active');
-        });
-    }
-
-    if (btnCancel && modal) {
-        btnCancel.addEventListener('click', () => modal.classList.remove('active'));
-    }
-
-    // Navegación
-    if (btnFavs) btnFavs.addEventListener('click', () => window.location.href = './favoritos.html');
-    if (btnTrash) btnTrash.addEventListener('click', () => window.location.href = './papelera.html');
-    if (btnCategories) btnCategories.addEventListener('click', () => window.location.href = './categorias.html');
 
     // Carga inicial
     loadCurrentView();
