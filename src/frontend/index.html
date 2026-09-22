@@ -18,11 +18,6 @@
         <!-- Barra lateral (Sidebar con estética Imagen 1 y paleta Imagen 2) -->
         <aside class="sidebar">
             <div class="sidebar-top">
-                <!-- Marca / Perfil superior redondeado -->
-                <div class="sidebar-brand">
-                    <div class="brand-avatar-circle"></div>
-                    <div class="brand-title-bar"></div>
-                </div>
 
                 <!-- Menú de navegación principal -->
                 <nav class="sidebar-nav">
@@ -33,7 +28,7 @@
                             <rect x="14" y="14" width="7" height="7"></rect>
                             <rect x="3" y="14" width="7" height="7"></rect>
                         </svg>
-                        <span>Overview</span>
+                        <span>Inicio</span>
                     </a>
                     <a href="#tasks" class="nav-item">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -42,7 +37,7 @@
                             <line x1="8" y1="2" x2="8" y2="6"></line>
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                         </svg>
-                        <span>Tasks</span>
+                        <span>Tareas</span>
                     </a>
                     <a href="#documents" class="nav-item">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -52,7 +47,7 @@
                             <line x1="16" y1="17" x2="8" y2="17"></line>
                             <polyline points="10 9 9 9 8 9"></polyline>
                         </svg>
-                        <span>Documents</span>
+                        <span>Documentos</span>
                     </a>
                     <!-- Pestaña Activa con curva suave hacia el contenido -->
                     <a href="./index.html" class="nav-item active">
@@ -60,26 +55,26 @@
                             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
                             <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
                         </svg>
-                        <span>Notes</span>
+                        <span>Notas</span>
                     </a>
                     <a href="./favoritos.html" class="nav-item card-favs">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                         </svg>
-                        <span>Favorites</span>
+                        <span>Favoritos</span>
                     </a>
                     <a href="./categorias.html" class="nav-item card-categories">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        <span>Categories</span>
+                        <span>Categorías</span>
                     </a>
                     <a href="./papelera.html" class="nav-item trash-btn">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                         </svg>
-                        <span>Trash</span>
+                        <span>Papelera</span>
                     </a>
                 </nav>
 
@@ -87,11 +82,11 @@
                 <div class="sidebar-categories">
                     <div class="category-tag-item" data-category="Projects">
                         <span class="category-dot dot-yellow"></span>
-                        <span class="category-label">Projects</span>
+                        <span class="category-label">Proyectos</span>
                     </div>
                     <div class="category-tag-item" data-category="Business">
                         <span class="category-dot dot-pink"></span>
-                        <span class="category-label">Business</span>
+                        <span class="category-label">Negocios</span>
                     </div>
                     <div class="category-tag-item" data-category="Personal">
                         <span class="category-dot dot-blue"></span>
@@ -101,7 +96,6 @@
                         <span class="category-dot dot-green"></span>
                         <span class="category-label">General</span>
                     </div>
-                    <button class="btn-add-tag card-new" id="btn-sidebar-add-new">+ Add new</button>
                 </div>
             </div>
 
@@ -118,7 +112,7 @@
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2zM4 6a2 2 0 1 1-2-2 2 2 0 0 1 2 2z"></path></svg>
                     </a>
                 </div>
-                <div class="copyright-text">© 2026 All rights reserved</div>
+                <div class="copyright-text">© 2026 Todos los derechos reservados</div>
             </div>
         </aside>
 
@@ -131,7 +125,7 @@
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    <input type="text" id="search-input" placeholder="Search" autocomplete="off" />
+                    <input type="text" id="search-input" placeholder="Buscar" autocomplete="off" />
                     <button id="search-clear-btn" class="search-clear" title="Limpiar búsqueda" style="display: none;">×</button>
                 </div>
 
@@ -139,7 +133,7 @@
                     <div class="avatar-wrapper">
                         <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="avatar-img" />
                     </div>
-                    <span class="user-greeting">Hello, Peter!</span>
+                    <span class="user-greeting">¡Hola, Peter!</span>
                     <button class="btn-notification" title="Notificaciones">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -153,9 +147,9 @@
             <!-- Fila de Filtros de Pestañas y Botón "+ Add new note" -->
             <section class="action-bar">
                 <div class="filter-tabs">
-                    <button class="filter-tab active" data-category="All">All</button>
-                    <button class="filter-tab" data-category="Projects">Projects</button>
-                    <button class="filter-tab" data-category="Business">Business</button>
+                    <button class="filter-tab active" data-category="All">Todos</button>
+                    <button class="filter-tab" data-category="Projects">Proyectos</button>
+                    <button class="filter-tab" data-category="Business">Negocios</button>
                     <button class="filter-tab" data-category="Personal">Personal</button>
                     <button class="filter-tab" data-category="General">General</button>
                 </div>
@@ -167,7 +161,7 @@
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
                     </span>
-                    <span>Add new note</span>
+                    <span>Nueva nota</span>
                 </button>
             </section>
 
@@ -208,13 +202,10 @@
                 <div class="category-select-container">
                     <label for="note-category">Categoría:</label>
                     <select id="note-category" class="form-control">
-                        <option value="Projects">Projects</option>
-                        <option value="Business">Business</option>
+                        <option value="Projects">Proyectos</option>
+                        <option value="Business">Negocios</option>
                         <option value="Personal">Personal</option>
                         <option value="General" selected>General</option>
-                        <option value="Trabajo">Trabajo</option>
-                        <option value="Escuela">Escuela</option>
-                        <option value="Casa">Casa</option>
                     </select>
                 </div>
             </div>

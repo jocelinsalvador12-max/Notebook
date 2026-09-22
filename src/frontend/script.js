@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Formateador de fecha similar al estilo de la Imagen 1 ("23 June, 2017")
     function formatNoteDate(dateVal, id) {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         let d = dateVal ? new Date(dateVal) : new Date();
         if (isNaN(d.getTime())) {
             d = new Date();
@@ -284,8 +284,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function renderCategories() {
         notesGrid.innerHTML = '<p class="empty-msg">Cargando categorías...</p>';
         const defaultCategories = [
-            { name: 'Projects', color: 'var(--pastel-yellow)', icon: '📁' },
-            { name: 'Business', color: 'var(--pastel-pink)', icon: '💼' },
+            { name: 'Proyectos', color: 'var(--pastel-yellow)', icon: '📁' },
+            { name: 'Negocios', color: 'var(--pastel-pink)', icon: '💼' },
             { name: 'Personal', color: 'var(--pastel-blue)', icon: '⭐' },
             { name: 'General', color: 'var(--pastel-mint)', icon: '📝' }
         ];
