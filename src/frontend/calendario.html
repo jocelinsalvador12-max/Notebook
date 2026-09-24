@@ -95,6 +95,9 @@
             box-shadow: 0 4px 24px rgba(100,50,180,0.09);
             overflow: hidden;
             flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
         }
 
         .cal-header-row {
@@ -117,10 +120,13 @@
         .cal-cells {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
+            grid-auto-rows: minmax(0, 1fr);
+            flex: 1;
+            min-height: 0;
         }
 
         .cal-cell {
-            min-height: 100px;
+            min-height: 0;
             border-right: 1px solid rgba(139,92,246,0.07);
             border-bottom: 1px solid rgba(139,92,246,0.07);
             padding: 8px 10px;
@@ -241,7 +247,7 @@
         <aside class="sidebar">
             <div class="sidebar-top">
                 <nav class="sidebar-nav">
-                    <a href="./index.html" class="nav-item">
+                    <a href="./app.html" class="nav-item">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="3" width="7" height="7"></rect>
                             <rect x="14" y="3" width="7" height="7"></rect>
@@ -559,7 +565,7 @@
                 currentView = v;
                 document.querySelectorAll('.cal-view-tab').forEach(t => t.classList.remove('active'));
                 document.getElementById(`tab-${v}`).classList.add('active');
-                document.getElementById('view-mes').style.display = v === 'mes' ? 'block' : 'none';
+                document.getElementById('view-mes').style.display = v === 'mes' ? 'flex' : 'none';
                 document.getElementById('view-semana').style.display = v === 'semana' ? 'block' : 'none';
                 document.getElementById('view-dia').style.display = v === 'dia' ? 'block' : 'none';
                 refreshView();

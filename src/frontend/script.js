@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.style.backgroundColor = cat.color;
             card.innerHTML = `<span class="category-icon">${cat.icon}</span><h3>${escapeHTML(cat.name)}</h3>`;
             card.addEventListener('click', () => {
-                window.location.href = `./index.html?category=${encodeURIComponent(cat.name)}`;
+                window.location.href = `./app.html?category=${encodeURIComponent(cat.name)}`;
             });
             notesGrid.appendChild(card);
         });

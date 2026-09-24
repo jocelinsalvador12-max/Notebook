@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#a855f7">
+    <title>Notebook - Iniciar sesión</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./login.css">
+</head>
+<body>
+    <main class="login-page">
+        <section class="login-shell" aria-labelledby="brand-name">
+            <a class="brand" href="../app.html" aria-label="Notebook, ir a la aplicación">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 32 32" fill="none"><rect x="3" y="3" width="26" height="26" rx="8" stroke="currentColor" stroke-width="2.5"/><path d="m10 21 2.1-6.1L22 5l5 5-9.9 9.9L11 22Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m18.5 8.5 5 5" stroke="currentColor" stroke-width="2"/></svg>
+                </span>
+                <span id="brand-name">Notebook</span>
+            </a>
+
+            <form class="login-card" id="login-form">
+                <h1>¡Qué bueno verte!</h1>
+                <p class="subtitle">Inicia sesión para continuar con tus notas</p>
+
+                <label for="username">Usuario</label>
+                <input id="username" name="username" type="text" placeholder="Tu nombre de usuario" autocomplete="username">
+
+                <label for="password">Contraseña</label>
+                <input id="password" name="password" type="password" placeholder="Tu contraseña" autocomplete="current-password">
+
+                <a class="forgot-link" href="../app.html">¿Olvidaste tu contraseña?</a>
+                <button class="login-button" type="submit">Iniciar sesión</button>
+
+                <p class="signup-prompt">¿Aún no tienes cuenta? <a href="../app.html">Regístrate</a></p>
+            </form>
+            <p class="login-footer">Tus ideas, siempre contigo.</p>
+        </section>
+    </main>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', (event) => {
+            event.preventDefault();
+            window.location.href = '../app.html';
+        });
+    </script>
+</body>
+</html>

@@ -18,7 +18,9 @@ export default defineConfig({
         outDir: '../../dist',
         rollupOptions: {
             input: {
-                main: resolve(__dirname, 'src/frontend/index.html'),
+                main: resolve(__dirname, 'src/frontend/app.html'),
+                landing: resolve(__dirname, 'src/frontend/index.html'),
+                login: resolve(__dirname, 'src/frontend/login/index.html'),
                 favoritos: resolve(__dirname, 'src/frontend/favoritos.html'),
                 categorias: resolve(__dirname, 'src/frontend/categorias.html'),
                 papelera: resolve(__dirname, 'src/frontend/papelera.html'),
