@@ -5,6 +5,12 @@ const { createClient } = require('@libsql/client');
 const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json());
+const permanentFolderNames = new Set([
+    'proyectos', 'projects',
+    'negocios', 'business', 'trabajo',
+    'personal', 'casa',
+    'general'
+]);
 
 // Conexión directa a Turso con credenciales
 const db = createClient({
@@ -165,6 +171,16 @@ app.post('/api/categories', async (req, res) => {
         return res.status(400).json({ error: 'El nombre de la carpeta es requerido' });
     }
     try {
+        if (permanentFolderNames.has(name.trim().toLowerCase())) {
+            return res.status(409).json({ error: 'Ese nombre está reservado para una carpeta permanente' });
+        }
+        const duplicate = await db.execute({
+            sql: 'SELECT id FROM Categorias WHERE lower(name) = lower(?) LIMIT 1',
+            args: [name.trim()]
+        });
+        if (duplicate.rows.length > 0) {
+            return res.status(409).json({ error: 'Ya existe una carpeta con ese nombre' });
+        }
         const result = await db.execute({
             sql: 'INSERT INTO Categorias (name, color, icon) VALUES (?, ?, ?)',
             args: [
@@ -181,10 +197,60 @@ app.post('/api/categories', async (req, res) => {
     }
 });
 
+// PUT: Renombrar una carpeta creada por el usuario
+app.put('/api/categories/:id', async (req, res) => {
+    const { id } = req.params;
+    const name = String(req.body.name || '').trim();
+    if (!name) {
+        return res.status(400).json({ error: 'El nombre de la carpeta es requerido' });
+    }
+    try {
+        const currentResult = await db.execute({
+            sql: 'SELECT id, name FROM Categorias WHERE id = ?',
+            args: [id]
+        });
+        const current = currentResult.rows[0];
+        if (!current) return res.status(404).json({ error: 'No se encontró la carpeta' });
+        if (permanentFolderNames.has(String(current.name).trim().toLowerCase())) {
+            return res.status(403).json({ error: 'Las carpetas permanentes no se pueden editar' });
+        }
+        if (permanentFolderNames.has(name.toLowerCase())) {
+            return res.status(409).json({ error: 'Ese nombre está reservado para una carpeta permanente' });
+        }
+        const duplicate = await db.execute({
+            sql: 'SELECT id FROM Categorias WHERE lower(name) = lower(?) AND id <> ? LIMIT 1',
+            args: [name, id]
+        });
+        if (duplicate.rows.length > 0) {
+            return res.status(409).json({ error: 'Ya existe una carpeta con ese nombre' });
+        }
+        await db.execute({
+            sql: 'UPDATE Categorias SET name = ? WHERE id = ?',
+            args: [name, id]
+        });
+        await db.execute({
+            sql: 'UPDATE Notas SET category = ? WHERE lower(category) = lower(?)',
+            args: [name, current.name]
+        });
+        res.json({ success: true, id, name, message: 'Carpeta actualizada' });
+    } catch (error) {
+        console.error('Error al actualizar carpeta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // DELETE: Eliminar categoría / carpeta
 app.delete('/api/categories/:id', async (req, res) => {
     const { id } = req.params;
     try {
+        const result = await db.execute({
+            sql: 'SELECT name FROM Categorias WHERE id = ?',
+            args: [id]
+        });
+        const folder = result.rows[0];
+        if (folder && permanentFolderNames.has(String(folder.name).trim().toLowerCase())) {
+            return res.status(403).json({ error: 'Las carpetas permanentes no se pueden eliminar' });
+        }
         await db.execute({
             sql: 'DELETE FROM Categorias WHERE id = ?',
             args: [id]
@@ -196,7 +262,44 @@ app.delete('/api/categories/:id', async (req, res) => {
     }
 });
 
+async function initializePermanentFolders() {
+    await db.execute(
+        'CREATE TABLE IF NOT EXISTS AppMigrations (' +
+        'name TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)'
+    );
+    const migrationName = 'seed-permanent-folders-v2';
+    const migration = await db.execute({
+        sql: 'SELECT name FROM AppMigrations WHERE name = ?',
+        args: [migrationName]
+    });
+    if (migration.rows.length > 0) return;
+
+    const existingResult = await db.execute('SELECT name FROM Categorias');
+    const existingNames = new Set(existingResult.rows.map(row => String(row.name || '').trim().toLowerCase()));
+    const folders = [
+        { name: 'Proyectos', color: '#FCF5BF', icon: '📁', aliases: ['proyectos', 'projects'] },
+        { name: 'Negocios', color: '#FF99C8', icon: '💼', aliases: ['negocios', 'business', 'trabajo'] },
+        { name: 'Personal', color: '#A8DEFA', icon: '⭐', aliases: ['personal', 'casa'] },
+        { name: 'General', color: '#D0F4E0', icon: '📝', aliases: ['general'] }
+    ];
+    for (const folder of folders) {
+        if (folder.aliases.some(alias => existingNames.has(alias))) continue;
+        await db.execute({
+            sql: 'INSERT INTO Categorias (name, color, icon) VALUES (?, ?, ?)',
+            args: [folder.name, folder.color, folder.icon]
+        });
+    }
+    await db.execute({
+        sql: 'INSERT OR IGNORE INTO AppMigrations (name) VALUES (?)',
+        args: [migrationName]
+    });
+}
+
 const PORT = 5080;
-app.listen(PORT, () => {
-    console.log(`SERVIDOR EN http://localhost:${PORT}`);
-});
+initializePermanentFolders()
+    .catch(error => console.error('No se pudieron inicializar las carpetas permanentes en Turso:', error))
+    .finally(() => {
+        app.listen(PORT, () => {
+            console.log('SERVIDOR EN http://localhost:' + PORT);
+        });
+    });

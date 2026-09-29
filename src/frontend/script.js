@@ -1,7 +1,53 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Apunta al servidor Node.js en el puerto 5080 (o proxy)
     const API_URL = 'http://localhost:5080/api';
-    const builtInCategories = new Set(['projects', 'proyectos', 'business', 'negocios', 'personal', 'general']);
+    const savedUsername = localStorage.getItem('notebookUsername')?.trim();
+    document.querySelectorAll('.user-greeting').forEach(greeting => {
+        greeting.textContent = `¡Hola, ${savedUsername || 'Peter'}!`;
+    });
+    const permanentFolderNames = new Set([
+        'proyectos', 'projects',
+        'negocios', 'business', 'trabajo',
+        'personal', 'casa',
+        'general'
+    ]);
+    const permanentFolderDefaults = [
+        { name: 'Proyectos', color: '#FCF5BF', icon: '📁', aliases: ['proyectos', 'projects'] },
+        { name: 'Negocios', color: '#FF99C8', icon: '💼', aliases: ['negocios', 'business', 'trabajo'] },
+        { name: 'Personal', color: '#A8DEFA', icon: '⭐', aliases: ['personal', 'casa'] },
+        { name: 'General', color: '#D0F4E0', icon: '📝', aliases: ['general'] }
+    ];
+    const folderOrder = [
+        ['proyectos', 'projects'],
+        ['negocios', 'business', 'trabajo'],
+        ['personal', 'casa'],
+        ['general']
+    ];
+    const isPermanentFolder = name => permanentFolderNames.has(String(name || '').trim().toLowerCase());
+    const sortFolders = folders => [...folders].sort((a, b) => {
+        const aName = String(a.name || '').trim().toLowerCase();
+        const bName = String(b.name || '').trim().toLowerCase();
+        const aIndex = folderOrder.findIndex(group => group.includes(aName));
+        const bIndex = folderOrder.findIndex(group => group.includes(bName));
+        return (aIndex < 0 ? folderOrder.length : aIndex) - (bIndex < 0 ? folderOrder.length : bIndex);
+    });
+    const withPermanentFolders = folders => {
+        const available = Array.isArray(folders) ? [...folders] : [];
+        const existingNames = new Set(available.map(folder => String(folder.name || '').trim().toLowerCase()));
+        permanentFolderDefaults.forEach(folder => {
+            if (!folder.aliases.some(alias => existingNames.has(alias))) {
+                available.push({ ...folder, id: null });
+            }
+        });
+        const displayFolders = available.map(folder => {
+            const normalizedName = String(folder.name || '').trim().toLowerCase();
+            const permanentFolder = permanentFolderDefaults.find(item => item.aliases.includes(normalizedName));
+            return permanentFolder
+                ? { ...permanentFolder, ...folder, name: permanentFolder.name }
+                : folder;
+        });
+        return sortFolders(displayFolders);
+    };
 
     // Detección automática de la vista según la URL
     let currentView = 'notes';
@@ -123,8 +169,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sidebarFolders) return;
 
         const categories = await fetchAPI('/categories');
-        const folders = (Array.isArray(categories) ? categories : [])
-            .filter(folder => folder && folder.name && !builtInCategories.has(folder.name.trim().toLowerCase()));
+        const folders = withPermanentFolders((Array.isArray(categories) ? categories : [])
+            .filter(folder => folder && folder.name));
 
         sidebarFolders.innerHTML = '';
         folders.forEach(folder => {
@@ -379,21 +425,14 @@ document.addEventListener('DOMContentLoaded', () => {
         ]);
 
         const notesList = Array.isArray(allNotes) ? allNotes : [];
-        const builtInFolderCards = [
-            { name: 'Proyectos', color: '#FCF5BF', icon: '📁' },
-            { name: 'Negocios', color: '#FF99C8', icon: '💼' },
-            { name: 'Personal', color: '#A8DEFA', icon: '⭐' },
-            { name: 'General', color: '#D0F4E0', icon: '📝' }
-        ];
-        const customFolders = (Array.isArray(dbCategories) ? dbCategories : [])
-            .filter(c => c && c.name && !builtInCategories.has(c.name.trim().toLowerCase()))
+        const categoriesData = withPermanentFolders((Array.isArray(dbCategories) ? dbCategories : [])
+            .filter(c => c && c.name)
             .map(c => ({
-                id: c.id,
+                id: isPermanentFolder(c.name) ? null : c.id,
                 name: c.name,
                 color: c.color || '#FCF5BF',
                 icon: c.icon || '📁'
-            }));
-        const categoriesData = [...builtInFolderCards, ...customFolders];
+            })));
 
         notesGrid.innerHTML = '';
         if (categoriesData.length === 0) {
@@ -424,18 +463,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="category-open-hint">Abrir y crear notas →</span>
             `;
 
+            if (cat.id) {
+                const cardTop = card.querySelector('.category-card-top');
+                const actions = document.createElement('div');
+                actions.className = 'category-card-actions';
+                const deleteButton = cardTop.querySelector('.btn-delete-folder');
+                if (deleteButton) actions.appendChild(deleteButton);
+                const editButton = document.createElement('button');
+                editButton.className = 'btn-edit-folder';
+                editButton.type = 'button';
+                editButton.title = 'Editar nombre de carpeta';
+                editButton.setAttribute('aria-label', 'Editar carpeta ' + cat.name);
+                editButton.textContent = '✎';
+                actions.appendChild(editButton);
+                cardTop.appendChild(actions);
+            }
+
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-delete-folder')) return;
+                if (e.target.closest('.btn-delete-folder, .btn-edit-folder')) return;
                 window.location.href = `./app.html?category=${encodeURIComponent(cat.name)}`;
             });
+
+            const btnEdit = card.querySelector('.btn-edit-folder');
+            if (btnEdit) {
+                btnEdit.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const name = prompt('Nuevo nombre para la carpeta:', cat.name);
+                    if (!name || !name.trim() || name.trim() === cat.name) return;
+                    const updated = await fetchAPI('/categories/' + cat.id, 'PUT', { name: name.trim() });
+                    if (updated) {
+                        await renderCategories();
+                        renderSidebarFolders();
+                    } else {
+                        alert('No se pudo actualizar la carpeta. Verifica que el nombre no esté en uso.');
+                    }
+                });
+            }
 
             const btnDel = card.querySelector('.btn-delete-folder');
             if (btnDel) {
                 btnDel.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (confirm(`¿Eliminar la carpeta "${cat.name}"?`)) {
-                        await fetchAPI(`/categories/${cat.id}`, 'DELETE');
-                        renderCategories();
+                    if (confirm('¿Eliminar la carpeta "' + cat.name + '"?')) {
+                        if (cat.id) {
+                            await fetchAPI('/categories/' + cat.id, 'DELETE');
+                        }
+                        await renderCategories();
+                        renderSidebarFolders();
                     }
                 });
             }
@@ -619,7 +693,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             { name: 'Business', label: 'Negocios' },
                             { name: 'Personal', label: 'Personal' },
                             { name: 'General', label: 'General' },
-                            ...cats.filter(c => c && c.name && !builtInCategories.has(c.name.trim().toLowerCase()))
+                            ...cats.filter(c => c && c.name && !permanentFolderNames.has(c.name.trim().toLowerCase()))
+                                .filter(c => !['business', 'negocios', 'trabajo', 'personal', 'casa', 'general']
+                                    .includes(c.name.trim().toLowerCase()))
                                 .map(c => ({ name: c.name, label: c.name }))
                         ];
                         categoryOptions.forEach(c => {

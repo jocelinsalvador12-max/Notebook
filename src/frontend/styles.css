@@ -1056,6 +1056,12 @@ body {
     line-height: 1;
 }
 
+.category-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .btn-delete-folder {
     background: rgba(220, 38, 38, 0.12);
     color: #DC2626;
@@ -1075,6 +1081,32 @@ body {
 
 .category-card:hover .btn-delete-folder {
     opacity: 1;
+}
+
+.btn-edit-folder {
+    background: rgba(124, 58, 237, 0.12);
+    color: #6D28D9;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.category-card:hover .btn-edit-folder {
+    opacity: 1;
+}
+
+.btn-edit-folder:hover {
+    background: #6D28D9;
+    color: #FFFFFF;
 }
 
 .btn-delete-folder:hover {
@@ -1212,7 +1244,6 @@ body {
 }
 
 #sidebar-user-folders {
-    margin-top: 12px;
     padding-right: 6px;
 }
 
