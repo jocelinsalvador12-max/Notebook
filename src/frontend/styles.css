@@ -203,12 +203,23 @@ body {
     color: var(--sidebar-text);
     transition: transform 0.15s ease, color 0.15s ease;
     padding: 2px 0;
+    text-decoration: none;
 }
 
 .category-tag-item:hover {
     color: #1F1030;
     transform: translateX(3px);
 }
+
+.category-tag-item.drop-target {
+    color: #5B21B6;
+    background: rgba(255, 255, 255, 0.52);
+    border-radius: 8px;
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.52);
+}
+
+.note-card[draggable="true"] { cursor: grab; }
+.note-card.is-dragging { opacity: 0.45; cursor: grabbing; }
 
 .category-dot {
     width: 9px;
@@ -738,6 +749,7 @@ body {
 }
 
 .editor-content input[type="text"],
+.editor-content input[type="datetime-local"],
 .editor-content textarea,
 .editor-content select {
     width: 100%;
@@ -746,12 +758,14 @@ body {
     border-radius: 12px;
     padding: 12px 15px;
     font-size: 14.5px;
+    font-family: inherit;
     color: var(--text-title);
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .editor-content input[type="text"]:focus,
+.editor-content input[type="datetime-local"]:focus,
 .editor-content textarea:focus,
 .editor-content select:focus {
     border-color: #BA8BE8;
@@ -771,7 +785,8 @@ body {
 }
 
 .color-picker-container,
-.category-select-container {
+.category-select-container,
+.date-input-container {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -779,10 +794,42 @@ body {
 }
 
 .color-picker-container label,
-.category-select-container label {
+.category-select-container label,
+.date-input-container label {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-body);
+}
+
+/* Insignias de fechas en las tarjetas de notas */
+.card-dates-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+    font-size: 11.5px;
+    background: rgba(255, 255, 255, 0.55);
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.card-date-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #4B5563;
+    font-weight: 500;
+}
+
+.card-date-item.due-date {
+    color: #7C3AED;
+    font-weight: 600;
+}
+
+.card-date-item.due-date.urgent {
+    color: #DC2626;
+    font-weight: 700;
 }
 
 /* Botones de muestra de color (Swatches) de la paleta Imagen 2 */
@@ -965,41 +1012,226 @@ body {
     transform: translateY(-2px);
 }
 
-/* Grid de Categorías */
+/* Grid de Carpetas / Categorías */
 .categories-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    grid-auto-rows: 1fr;
+    align-items: stretch;
     gap: 20px;
     width: 100%;
 }
 
 .category-card {
+    height: 164px;
+    min-height: 164px;
+    box-sizing: border-box;
     border-radius: 20px;
-    padding: 28px 20px;
+    padding: 22px 20px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
     gap: 10px;
     cursor: pointer;
-    box-shadow: var(--shadow-sm);
-    border: 1px solid rgba(0, 0, 0, 0.04);
-    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 16px rgba(70, 30, 100, 0.06);
+    border: 1.5px solid rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
 }
 
 .category-card:hover {
     transform: translateY(-4px);
-    box-shadow: var(--shadow-hover);
+    box-shadow: 0 10px 24px rgba(70, 30, 100, 0.12);
 }
 
-.category-card h3 {
-    font-size: 18px;
-    font-weight: 700;
-    color: #272B38;
+.category-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 
 .category-icon {
     font-size: 32px;
+    line-height: 1;
+}
+
+.btn-delete-folder {
+    background: rgba(220, 38, 38, 0.12);
+    color: #DC2626;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.category-card:hover .btn-delete-folder {
+    opacity: 1;
+}
+
+.btn-delete-folder:hover {
+    background: #DC2626;
+    color: #FFFFFF;
+}
+
+.category-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #272B38;
+    margin: 0;
+    min-height: 2.5em;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+.category-count {
+    font-size: 13px;
+    color: #4B5563;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.category-open-hint {
+    font-size: 12px;
+    font-weight: 600;
+    color: #5B21B6;
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Tarjeta destacada de "+ Crear Carpeta" */
+.category-card.card-new-folder {
+    background: #FAF5FF;
+    border: 2px dashed #C084FC;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 180px;
+    box-shadow: none;
+}
+
+.category-card.card-new-folder:hover {
+    background: #F3E8FF;
+    border-color: #7C3AED;
+    transform: translateY(-4px);
+    box-shadow: 0 10px 24px rgba(124, 58, 237, 0.15);
+}
+
+.plus-icon-circle-large {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #7C3AED;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+}
+
+/* Selector para jalar o mover nota a una carpeta */
+.card-folder-assign {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+    font-size: 11.5px;
+    color: #4B5563;
+}
+
+.select-move-note {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    padding: 3px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #5B21B6;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s;
+    max-width: 130px;
+}
+
+.select-move-note:hover,
+.select-move-note:focus {
+    border-color: #7C3AED;
+    background: #FFFFFF;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+}
+
+/* Items dinámicos en sidebar */
+.sidebar-categories .category-tag-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-body);
+    transition: background 0.15s;
+    text-decoration: none;
+}
+
+.sidebar-categories .category-tag-item:hover {
+    background: rgba(124, 58, 237, 0.08);
+    color: #7C3AED;
+}
+
+#sidebar-category-scroll {
+    height: calc(100vh - 455px);
+    min-height: 100px;
+    box-sizing: border-box;
+    padding-top: 12px;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #8B5CF6 rgba(124, 58, 237, 0.1);
+}
+
+#sidebar-user-folders {
+    margin-top: 12px;
+    padding-right: 6px;
+}
+
+#sidebar-category-scroll::-webkit-scrollbar {
+    width: 7px;
+}
+
+#sidebar-category-scroll::-webkit-scrollbar-track {
+    border-radius: 8px;
+    background: rgba(124, 58, 237, 0.1);
+}
+
+#sidebar-category-scroll::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    background: #8B5CF6;
+}
+
+.category-icon-small {
+    font-size: 15px;
 }
 
 /* Mensajes de vacío */
@@ -1025,6 +1257,8 @@ body {
     .sidebar-brand .brand-title-bar,
     .nav-item span,
     .sidebar-categories,
+    .sidebar-category-pinned,
+    .sidebar-category-scroll,
     .sidebar-footer {
         display: none;
     }

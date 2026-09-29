@@ -49,7 +49,7 @@
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        <span>Categorías</span>
+                        <span>Carpetas</span>
                     </a>
                     <a href="./papelera.html" class="nav-item active trash-btn">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -59,11 +59,16 @@
                         <span>Papelera</span>
                     </a>
                 </nav>
-                <div class="sidebar-categories">
-                    <div class="category-tag-item" data-category="Projects"><span class="category-dot dot-yellow"></span><span class="category-label">Proyectos</span></div>
-                    <div class="category-tag-item" data-category="Business"><span class="category-dot dot-pink"></span><span class="category-label">Negocios</span></div>
-                    <div class="category-tag-item" data-category="Personal"><span class="category-dot dot-blue"></span><span class="category-label">Personal</span></div>
-                    <div class="category-tag-item" data-category="General"><span class="category-dot dot-green"></span><span class="category-label">General</span></div>
+                <div class="sidebar-categories sidebar-category-pinned" aria-label="Categoría fija">
+                    <a class="category-tag-item" href="./app.html?category=Projects" data-category="Projects"><span class="category-dot dot-yellow"></span><span>Proyectos</span></a>
+                </div>
+                <div class="sidebar-category-scroll" id="sidebar-category-scroll">
+                    <div class="sidebar-categories" aria-label="Categorías">
+                    <a class="category-tag-item" href="./app.html?category=Business" data-category="Business"><span class="category-dot dot-pink"></span><span>Negocios</span></a>
+                    <a class="category-tag-item" href="./app.html?category=Personal" data-category="Personal"><span class="category-dot dot-blue"></span><span>Personal</span></a>
+                    <a class="category-tag-item" href="./app.html?category=General" data-category="General"><span class="category-dot dot-green"></span><span>General</span></a>
+                    </div>
+                    <div class="sidebar-categories" id="sidebar-user-folders"></div>
                 </div>
             </div>
             <div class="sidebar-footer">

@@ -155,6 +155,30 @@
             box-shadow: 0 2px 8px rgba(124,58,237,0.4);
         }
 
+        .cal-event-chip {
+            font-size: 0.72rem;
+            padding: 2px 6px;
+            border-radius: 6px;
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+        }
+        .cal-event-chip.due {
+            background: #EDE9FE;
+            color: #6D28D9;
+            border-left: 3px solid #7C3AED;
+        }
+        .cal-event-chip.assigned {
+            background: #E0F2FE;
+            color: #0369A1;
+            border-left: 3px solid #0EA5E9;
+        }
+
         /* ── Week view ── */
         .week-view {
             background: #fff;
@@ -287,7 +311,7 @@
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        <span>Categorías</span>
+                        <span>Carpetas</span>
                     </a>
                     <a href="./papelera.html" class="nav-item trash-btn">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -298,23 +322,16 @@
                     </a>
                 </nav>
 
-                <div class="sidebar-categories">
-                    <div class="category-tag-item" data-category="Projects">
-                        <span class="category-dot dot-yellow"></span>
-                        <span class="category-label">Proyectos</span>
+                <div class="sidebar-categories sidebar-category-pinned" aria-label="Categoría fija">
+                    <a class="category-tag-item" href="./app.html?category=Projects" data-category="Projects"><span class="category-dot dot-yellow"></span><span>Proyectos</span></a>
+                </div>
+                <div class="sidebar-category-scroll" id="sidebar-category-scroll">
+                    <div class="sidebar-categories" aria-label="Categorías">
+                    <a class="category-tag-item" href="./app.html?category=Business" data-category="Business"><span class="category-dot dot-pink"></span><span>Negocios</span></a>
+                    <a class="category-tag-item" href="./app.html?category=Personal" data-category="Personal"><span class="category-dot dot-blue"></span><span>Personal</span></a>
+                    <a class="category-tag-item" href="./app.html?category=General" data-category="General"><span class="category-dot dot-green"></span><span>General</span></a>
                     </div>
-                    <div class="category-tag-item" data-category="Business">
-                        <span class="category-dot dot-pink"></span>
-                        <span class="category-label">Negocios</span>
-                    </div>
-                    <div class="category-tag-item" data-category="Personal">
-                        <span class="category-dot dot-blue"></span>
-                        <span class="category-label">Personal</span>
-                    </div>
-                    <div class="category-tag-item" data-category="General">
-                        <span class="category-dot dot-green"></span>
-                        <span class="category-label">General</span>
-                    </div>
+                    <div class="sidebar-categories" id="sidebar-user-folders"></div>
                 </div>
             </div>
 
@@ -423,6 +440,7 @@
         </main>
     </div>
 
+    <script type="module" src="./script.js"></script>
     <script>
     (() => {
         const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -457,7 +475,8 @@
             // Celdas del mes actual
             for (let d = 1; d <= daysInMonth; d++) {
                 const isToday = (now.getFullYear() === currentYear && now.getMonth() === currentMonth && now.getDate() === d);
-                calCells.appendChild(makeCell(d, false, isToday));
+                const cellDate = new Date(currentYear, currentMonth, d);
+                calCells.appendChild(makeCell(d, false, isToday, cellDate));
             }
 
             // Celdas del mes siguiente para completar la cuadrícula
@@ -468,13 +487,51 @@
             }
         }
 
-        function makeCell(day, otherMonth, isToday) {
+        let selectedDay = (now.getFullYear() === currentYear && now.getMonth() === currentMonth) ? now.getDate() : 1;
+
+        function escapeHTML(str) {
+            return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+
+        function makeCell(day, otherMonth, isToday, cellDate) {
             const cell = document.createElement('div');
             cell.className = 'cal-cell' + (otherMonth ? ' other-month' : '') + (isToday ? ' today' : '');
+            cell.style.cursor = otherMonth ? 'default' : 'pointer';
             const num = document.createElement('div');
             num.className = 'cal-day-num';
             num.textContent = day;
             cell.appendChild(num);
+
+            if (cellDate && Array.isArray(notesWithDates) && notesWithDates.length > 0) {
+                const yyyy = cellDate.getFullYear();
+                const mm = String(cellDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(cellDate.getDate()).padStart(2, '0');
+                const dayStr = `${yyyy}-${mm}-${dd}`;
+
+                notesWithDates.forEach(n => {
+                    if (n.due_at && n.due_at.startsWith(dayStr)) {
+                        const chip = document.createElement('div');
+                        chip.className = 'cal-event-chip due';
+                        chip.title = `Entrega: ${n.title}`;
+                        chip.textContent = `⏰ ${n.title}`;
+                        cell.appendChild(chip);
+                    } else if (n.assigned_at && n.assigned_at.startsWith(dayStr)) {
+                        const chip = document.createElement('div');
+                        chip.className = 'cal-event-chip assigned';
+                        chip.title = `Asignada: ${n.title}`;
+                        chip.textContent = `📌 ${n.title}`;
+                        cell.appendChild(chip);
+                    }
+                });
+            }
+
+            if (!otherMonth) {
+                cell.addEventListener('click', () => {
+                    selectedDay = day;
+                    document.getElementById('tab-dia').click();
+                });
+            }
+
             return cell;
         }
 
@@ -484,12 +541,14 @@
 
             // Encontrar el domingo de la semana actual
             const today = new Date(currentYear, currentMonth, 
-                (now.getFullYear() === currentYear && now.getMonth() === currentMonth) ? now.getDate() : 1
+                (now.getFullYear() === currentYear && now.getMonth() === currentMonth) ? selectedDay : 1
             );
             const sunday = new Date(today);
             sunday.setDate(today.getDate() - today.getDay());
 
             const numIds = ['sun','mon','tue','wed','thu','fri','sat'];
+            let earliestEventHour = 8; // Default a las 8:00 AM
+
             numIds.forEach((id, i) => {
                 const d = new Date(sunday);
                 d.setDate(sunday.getDate() + i);
@@ -497,12 +556,60 @@
                 el.textContent = d.getDate();
                 const isT = (d.toDateString() === now.toDateString());
                 el.className = 'week-day-num' + (isT ? ' today-num' : '');
+
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dayStr = `${yyyy}-${mm}-${dd}`;
+
+                // Filtrar notas con fecha en este día
+                const dayEvents = (Array.isArray(notesWithDates) ? notesWithDates : []).filter(n => {
+                    return (n.assigned_at && n.assigned_at.startsWith(dayStr)) ||
+                           (n.due_at && n.due_at.startsWith(dayStr));
+                });
+
                 // Render slots
                 const slots = document.getElementById(`wk-slots-${id}`);
                 slots.innerHTML = '';
                 for (let h = 0; h < 24; h++) {
                     const slot = document.createElement('div');
                     slot.className = 'week-hour-slot' + (isT && h === now.getHours() ? ' current-hour' : '');
+
+                    // Colocar chips en la hora correspondiente
+                    dayEvents.forEach(n => {
+                        let matches = false;
+                        let isDue = false;
+                        let timeStr = '';
+
+                        if (n.due_at && n.due_at.startsWith(dayStr)) {
+                            const dateObj = new Date(n.due_at);
+                            const evHour = isNaN(dateObj.getHours()) ? 9 : dateObj.getHours();
+                            if (evHour === h) {
+                                matches = true;
+                                isDue = true;
+                                timeStr = `${String(evHour).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+                            }
+                        }
+                        if (!matches && n.assigned_at && n.assigned_at.startsWith(dayStr)) {
+                            const dateObj = new Date(n.assigned_at);
+                            const evHour = isNaN(dateObj.getHours()) ? 9 : dateObj.getHours();
+                            if (evHour === h) {
+                                matches = true;
+                                isDue = false;
+                                timeStr = `${String(evHour).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+                            }
+                        }
+
+                        if (matches) {
+                            earliestEventHour = Math.min(earliestEventHour, h);
+                            const chip = document.createElement('div');
+                            chip.className = 'cal-event-chip ' + (isDue ? 'due' : 'assigned');
+                            chip.title = `${isDue ? 'Entrega' : 'Asignada'}: ${n.title} (${timeStr})`;
+                            chip.innerHTML = `${isDue ? '⏰' : '📌'} <strong>${timeStr}</strong> ${escapeHTML(n.title)}`;
+                            slot.appendChild(chip);
+                        }
+                    });
+
                     slots.appendChild(slot);
                 }
             });
@@ -516,14 +623,35 @@
                 lbl.textContent = h === 0 ? '' : `${h}:00`;
                 timesCol.appendChild(lbl);
             }
+
+            // Auto-scroll a la hora de las tareas o a las 8 AM
+            const weekBody = document.querySelector('.week-body');
+            if (weekBody) {
+                setTimeout(() => {
+                    weekBody.scrollTop = Math.max(0, (earliestEventHour - 1) * 56);
+                }, 50);
+            }
         }
 
         // ── Renderizar vista Día ──
         function renderDia() {
-            const d = (now.getFullYear() === currentYear && now.getMonth() === currentMonth) ? now.getDate() : 1;
+            const d = selectedDay;
             calTitle.textContent = `${MESES[currentMonth]} ${currentYear}`;
+            const targetDate = new Date(currentYear, currentMonth, d);
             document.getElementById('day-title').textContent =
-                `${DIAS_CORTOS[new Date(currentYear, currentMonth, d).getDay()]}, ${d} de ${MESES[currentMonth]} ${currentYear}`;
+                `${DIAS_CORTOS[targetDate.getDay()]}, ${d} de ${MESES[currentMonth]} ${currentYear}`;
+
+            const yyyy = targetDate.getFullYear();
+            const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(targetDate.getDate()).padStart(2, '0');
+            const dayStr = `${yyyy}-${mm}-${dd}`;
+
+            const dayEvents = (Array.isArray(notesWithDates) ? notesWithDates : []).filter(n => {
+                return (n.assigned_at && n.assigned_at.startsWith(dayStr)) ||
+                       (n.due_at && n.due_at.startsWith(dayStr));
+            });
+
+            let earliestEventHour = 8;
 
             const body = document.getElementById('day-body');
             body.innerHTML = '';
@@ -535,26 +663,84 @@
                 lbl.className = 'week-hour-label';
                 lbl.textContent = h === 0 ? '' : `${h}:00`;
                 timesCol.appendChild(lbl);
+
                 const slot = document.createElement('div');
                 slot.className = 'week-hour-slot' + (h === now.getHours() && now.getFullYear() === currentYear && now.getMonth() === currentMonth && now.getDate() === d ? ' current-hour' : '');
+
+                dayEvents.forEach(n => {
+                    let matches = false;
+                    let isDue = false;
+                    let timeStr = '';
+
+                    if (n.due_at && n.due_at.startsWith(dayStr)) {
+                        const dateObj = new Date(n.due_at);
+                        const evHour = isNaN(dateObj.getHours()) ? 9 : dateObj.getHours();
+                        if (evHour === h) {
+                            matches = true;
+                            isDue = true;
+                            timeStr = `${String(evHour).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+                        }
+                    }
+                    if (!matches && n.assigned_at && n.assigned_at.startsWith(dayStr)) {
+                        const dateObj = new Date(n.assigned_at);
+                        const evHour = isNaN(dateObj.getHours()) ? 9 : dateObj.getHours();
+                        if (evHour === h) {
+                            matches = true;
+                            isDue = false;
+                            timeStr = `${String(evHour).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+                        }
+                    }
+
+                    if (matches) {
+                        earliestEventHour = Math.min(earliestEventHour, h);
+                        const chip = document.createElement('div');
+                        chip.className = 'cal-event-chip ' + (isDue ? 'due' : 'assigned');
+                        chip.style.cssText = 'margin: 4px 8px; padding: 6px 12px; font-size: 0.85rem; border-radius: 8px;';
+                        chip.innerHTML = `${isDue ? '⏰ Entrega límite:' : '📌 Tarea asignada:'} <strong>${timeStr}</strong> - ${escapeHTML(n.title)} ${n.content ? `<span style="opacity:0.75; font-size:0.8rem; font-weight:normal;">(${escapeHTML(n.content)})</span>` : ''}`;
+                        slot.appendChild(chip);
+                    }
+                });
+
                 slotsCol.appendChild(slot);
             }
             body.appendChild(timesCol);
             body.appendChild(slotsCol);
+
+            setTimeout(() => {
+                body.scrollTop = Math.max(0, (earliestEventHour - 1) * 56);
+            }, 50);
         }
 
         // ── Navegación ──
         document.getElementById('btn-prev').addEventListener('click', () => {
-            currentMonth--;
-            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-            // Solo navegar dentro de 2026
+            if (currentView === 'dia') {
+                selectedDay--;
+                if (selectedDay < 1) {
+                    currentMonth--;
+                    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+                    selectedDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+                }
+            } else {
+                currentMonth--;
+                if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+            }
             if (currentYear < 2026) { currentYear = 2026; currentMonth = 0; }
             refreshView();
         });
 
         document.getElementById('btn-next').addEventListener('click', () => {
-            currentMonth++;
-            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+            if (currentView === 'dia') {
+                const daysInM = new Date(currentYear, currentMonth + 1, 0).getDate();
+                selectedDay++;
+                if (selectedDay > daysInM) {
+                    selectedDay = 1;
+                    currentMonth++;
+                    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+                }
+            } else {
+                currentMonth++;
+                if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+            }
             if (currentYear > 2026) { currentYear = 2026; currentMonth = 11; }
             refreshView();
         });
@@ -578,8 +764,24 @@
             else renderDia();
         }
 
+        // Cargar notas desde el backend para mostrarlas en el calendario
+        let notesWithDates = [];
+        async function loadCalendarNotes() {
+            try {
+                const res = await fetch('http://localhost:5080/api/notes');
+                if (res.ok) {
+                    const data = await res.json();
+                    notesWithDates = Array.isArray(data) ? data : [];
+                    refreshView();
+                }
+            } catch (e) {
+                console.log('API de notas no disponible:', e);
+            }
+        }
+
         // Inicial
         renderMes();
+        loadCalendarNotes();
     })();
     </script>
 </body>

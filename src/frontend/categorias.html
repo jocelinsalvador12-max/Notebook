@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notebook - Categorías</title>
+    <title>Notebook - Carpetas</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
@@ -49,7 +49,7 @@
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        <span>Categorías</span>
+                        <span>Carpetas</span>
                     </a>
                     <a href="./papelera.html" class="nav-item trash-btn">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -59,11 +59,16 @@
                         <span>Papelera</span>
                     </a>
                 </nav>
-                <div class="sidebar-categories">
-                    <div class="category-tag-item" data-category="Projects"><span class="category-dot dot-yellow"></span><span class="category-label">Proyectos</span></div>
-                    <div class="category-tag-item" data-category="Business"><span class="category-dot dot-pink"></span><span class="category-label">Negocios</span></div>
-                    <div class="category-tag-item" data-category="Personal"><span class="category-dot dot-blue"></span><span class="category-label">Personal</span></div>
-                    <div class="category-tag-item" data-category="General"><span class="category-dot dot-green"></span><span class="category-label">General</span></div>
+                <div class="sidebar-categories sidebar-category-pinned" aria-label="Categoría fija">
+                    <a class="category-tag-item" href="./app.html?category=Projects" data-category="Projects"><span class="category-dot dot-yellow"></span><span>Proyectos</span></a>
+                </div>
+                <div class="sidebar-category-scroll" id="sidebar-category-scroll">
+                    <div class="sidebar-categories" aria-label="Categorías">
+                    <a class="category-tag-item" href="./app.html?category=Business" data-category="Business"><span class="category-dot dot-pink"></span><span>Negocios</span></a>
+                    <a class="category-tag-item" href="./app.html?category=Personal" data-category="Personal"><span class="category-dot dot-blue"></span><span>Personal</span></a>
+                    <a class="category-tag-item" href="./app.html?category=General" data-category="General"><span class="category-dot dot-green"></span><span>General</span></a>
+                    </div>
+                    <div class="sidebar-categories" id="sidebar-user-folders"></div>
                 </div>
             </div>
             <div class="sidebar-footer">
@@ -82,7 +87,7 @@
                     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    <input type="text" id="search-input" placeholder="Buscar" autocomplete="off" />
+                    <input type="text" id="search-input" placeholder="Buscar materias o notas..." autocomplete="off" />
                     <button id="search-clear-btn" class="search-clear" title="Limpiar búsqueda" style="display:none;">×</button>
                 </div>
                 <div class="user-profile">
@@ -99,12 +104,53 @@
                     </button>
                 </div>
             </header>
-            <section class="action-bar">
-                <h2 style="font-size:1.3rem;font-weight:700;color:var(--text-primary);margin:0;">📁 Categorías</h2>
+
+            <section class="action-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 style="font-size:1.4rem;font-weight:700;color:var(--text-title);margin:0; display:flex; align-items:center; gap:10px;">
+                    📁 Mis carpetas
+                </h2>
+                <button id="btn-add-folder" class="btn-save" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; border: none; background: #7C3AED; color: white; box-shadow: 0 4px 14px rgba(124,58,237,0.3);">
+                    <span>➕ Nueva carpeta</span>
+                </button>
             </section>
+
             <div class="categories-grid"><!-- Se llena automáticamente con JS --></div>
         </main>
     </div>
+
+    <!-- Modal para crear carpeta personalizada -->
+    <div id="folder-modal" class="editor-modal">
+        <div class="editor-content" style="max-width: 440px;">
+            <div class="modal-header">
+                <h2>Nueva carpeta</h2>
+                <button id="folder-modal-close" class="modal-close-btn">&times;</button>
+            </div>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">Crea una carpeta para organizar tus notas:</p>
+            
+            <label for="folder-name-input" style="font-size: 13px; font-weight: 600; color: var(--text-body);">Nombre de la carpeta:</label>
+            <input type="text" id="folder-name-input" placeholder="Ej. Ideas, Lecturas, Proyecto nuevo..." required />
+
+            <div class="form-row">
+                <div class="color-picker-container">
+                    <label>Color de la carpeta:</label>
+                    <div class="color-swatches" id="folder-color-swatches">
+                        <button type="button" class="swatch-btn selected" data-color="#FCF5BF" style="background-color: #FCF5BF;" title="Amarillo pastel"></button>
+                        <button type="button" class="swatch-btn" data-color="#A8DEFA" style="background-color: #A8DEFA;" title="Azul pastel"></button>
+                        <button type="button" class="swatch-btn" data-color="#FF99C8" style="background-color: #FF99C8;" title="Rosa pastel"></button>
+                        <button type="button" class="swatch-btn" data-color="#D0F4E0" style="background-color: #D0F4E0;" title="Menta pastel"></button>
+                        <button type="button" class="swatch-btn" data-color="#E8C0FC" style="background-color: #E8C0FC;" title="Lavanda pastel"></button>
+                    </div>
+                    <input type="hidden" id="folder-color-val" value="#FCF5BF" />
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button id="folder-modal-cancel" class="btn-cancel">Cancelar</button>
+                <button id="folder-modal-save" class="btn-save">Crear Carpeta</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="./script.js"></script>
 </body>
 </html>

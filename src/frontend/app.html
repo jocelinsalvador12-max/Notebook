@@ -61,7 +61,7 @@
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        <span>Categorías</span>
+                        <span>Carpetas</span>
                     </a>
                     <a href="./papelera.html" class="nav-item trash-btn">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -72,24 +72,19 @@
                     </a>
                 </nav>
 
-                <!-- Categorías / Etiquetas con viñetas de colores de la Imagen 2 -->
-                <div class="sidebar-categories">
-                    <div class="category-tag-item" data-category="Projects">
-                        <span class="category-dot dot-yellow"></span>
-                        <span class="category-label">Proyectos</span>
+                <div class="sidebar-categories sidebar-category-pinned" aria-label="Categoría fija">
+                    <a class="category-tag-item" href="./app.html?category=Projects" data-category="Projects"><span class="category-dot dot-yellow"></span><span>Proyectos</span></a>
+                </div>
+
+                <div class="sidebar-category-scroll" id="sidebar-category-scroll">
+                    <div class="sidebar-categories" aria-label="Categorías">
+                    <a class="category-tag-item" href="./app.html?category=Business" data-category="Business"><span class="category-dot dot-pink"></span><span>Negocios</span></a>
+                    <a class="category-tag-item" href="./app.html?category=Personal" data-category="Personal"><span class="category-dot dot-blue"></span><span>Personal</span></a>
+                    <a class="category-tag-item" href="./app.html?category=General" data-category="General"><span class="category-dot dot-green"></span><span>General</span></a>
                     </div>
-                    <div class="category-tag-item" data-category="Business">
-                        <span class="category-dot dot-pink"></span>
-                        <span class="category-label">Negocios</span>
-                    </div>
-                    <div class="category-tag-item" data-category="Personal">
-                        <span class="category-dot dot-blue"></span>
-                        <span class="category-label">Personal</span>
-                    </div>
-                    <div class="category-tag-item" data-category="General">
-                        <span class="category-dot dot-green"></span>
-                        <span class="category-label">General</span>
-                    </div>
+
+                    <!-- Carpetas creadas por el usuario -->
+                    <div class="sidebar-categories" id="sidebar-user-folders"></div>
                 </div>
             </div>
 
@@ -140,12 +135,8 @@
 
             <!-- Fila de Filtros de Pestañas y Botón "+ Add new note" -->
             <section class="action-bar">
-                <div class="filter-tabs">
-                    <button class="filter-tab active" data-category="All">Todos</button>
-                    <button class="filter-tab" data-category="Projects">Proyectos</button>
-                    <button class="filter-tab" data-category="Business">Negocios</button>
-                    <button class="filter-tab" data-category="Personal">Personal</button>
-                    <button class="filter-tab" data-category="General">General</button>
+                <div class="filter-tabs" id="filter-tabs-container">
+                    <button class="filter-tab active" data-category="All">Todas las notas</button>
                 </div>
 
                 <button class="btn-add-note card-new" id="btn-add-note">
@@ -201,6 +192,18 @@
                         <option value="Personal">Personal</option>
                         <option value="General" selected>General</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Campos para asignación y entrega de tareas -->
+            <div class="form-row dates-row">
+                <div class="date-input-container">
+                    <label for="note-assigned">📌 Se asignó (Día y hora):</label>
+                    <input type="datetime-local" id="note-assigned" class="form-control" />
+                </div>
+                <div class="date-input-container">
+                    <label for="note-due">⏰ Fecha de entrega:</label>
+                    <input type="datetime-local" id="note-due" class="form-control" />
                 </div>
             </div>
 

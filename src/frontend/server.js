@@ -16,7 +16,7 @@ const db = createClient({
 app.get('/api/notes', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash FROM Notas WHERE in_trash = 0 ORDER BY id DESC'
+            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE in_trash = 0 ORDER BY id DESC'
         });
         res.json(result.rows);
     } catch (error) {
@@ -27,15 +27,17 @@ app.get('/api/notes', async (req, res) => {
 
 // POST: Guardar nueva nota en Turso DB
 app.post('/api/notes', async (req, res) => {
-    const { title, content, color, category } = req.body;
+    const { title, content, color, category, assigned_at, due_at } = req.body;
     try {
         const result = await db.execute({
-            sql: `INSERT INTO Notas (title, content, color, category, is_favorite, in_trash) VALUES (?, ?, ?, ?, 0, 0)`,
+            sql: `INSERT INTO Notas (title, content, color, category, is_favorite, in_trash, assigned_at, due_at) VALUES (?, ?, ?, ?, 0, 0, ?, ?)`,
             args: [
                 title || 'Sin título',
                 content || '',
                 color || 'card-peach',
-                category || 'General'
+                category || 'General',
+                assigned_at || null,
+                due_at || null
             ]
         });
         const newId = result.lastInsertRowid ? Number(result.lastInsertRowid) : null;
@@ -50,7 +52,7 @@ app.post('/api/notes', async (req, res) => {
 app.get('/api/favorites', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash FROM Notas WHERE in_trash = 0 AND is_favorite = 1 ORDER BY id DESC'
+            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE in_trash = 0 AND is_favorite = 1 ORDER BY id DESC'
         });
         res.json(result.rows);
     } catch (error) {
@@ -83,7 +85,7 @@ app.patch('/api/notes/:id/favorite', handleFavorite);
 app.get('/api/trash', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash FROM Notas WHERE in_trash = 1 ORDER BY id DESC'
+            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE in_trash = 1 ORDER BY id DESC'
         });
         res.json(result.rows);
     } catch (error) {
@@ -127,13 +129,69 @@ app.delete('/api/notes/:id', async (req, res) => {
     }
 });
 
-// GET: Categorías disponibles
+// PUT / PATCH: Mover o asignar nota a una carpeta (Jalar nota)
+const handleNoteCategory = async (req, res) => {
+    const { id } = req.params;
+    const { category } = req.body;
+    try {
+        await db.execute({
+            sql: 'UPDATE Notas SET category = ? WHERE id = ?',
+            args: [category || 'General', id]
+        });
+        res.json({ success: true, id, category: category || 'General', message: 'Nota movida a la carpeta' });
+    } catch (error) {
+        console.error('Error al mover nota a carpeta:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+app.put('/api/notes/:id/category', handleNoteCategory);
+app.patch('/api/notes/:id/category', handleNoteCategory);
+
+// GET: Categorías / Carpetas disponibles
 app.get('/api/categories', async (req, res) => {
     try {
-        const result = await db.execute('SELECT * FROM Categorias');
+        const result = await db.execute('SELECT * FROM Categorias ORDER BY id ASC');
         res.json(result.rows);
     } catch (error) {
         console.error('Error al consultar categorías:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: Crear nueva categoría / carpeta (Materia)
+app.post('/api/categories', async (req, res) => {
+    const { name, color, icon } = req.body;
+    if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'El nombre de la carpeta es requerido' });
+    }
+    try {
+        const result = await db.execute({
+            sql: 'INSERT INTO Categorias (name, color, icon) VALUES (?, ?, ?)',
+            args: [
+                name.trim(),
+                color || '#FCF5BF',
+                icon || '📁'
+            ]
+        });
+        const newId = result.lastInsertRowid ? Number(result.lastInsertRowid) : null;
+        res.status(201).json({ id: newId, name: name.trim(), color, icon, message: 'Carpeta creada exitosamente' });
+    } catch (error) {
+        console.error('Error al crear categoría:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE: Eliminar categoría / carpeta
+app.delete('/api/categories/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.execute({
+            sql: 'DELETE FROM Categorias WHERE id = ?',
+            args: [id]
+        });
+        res.json({ success: true, message: 'Carpeta eliminada' });
+    } catch (error) {
+        console.error('Error al eliminar categoría:', error);
         res.status(500).json({ error: error.message });
     }
 });

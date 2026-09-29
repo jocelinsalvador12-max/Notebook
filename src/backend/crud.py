@@ -7,29 +7,31 @@ except ImportError:
         from data import query_turso
 
 def get_all_notes():
-    return query_turso("SELECT id, title, content, color, category, is_favorite, in_trash FROM Notas WHERE in_trash = 0 ORDER BY id DESC;")
+    return query_turso("SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE in_trash = 0 ORDER BY id DESC;")
 
-def create_note(title_or_obj, content: str = "", color: str = "card-peach", category: str = "General"):
+def create_note(title_or_obj, content: str = "", color: str = "card-peach", category: str = "General", assigned_at: str = None, due_at: str = None):
     if hasattr(title_or_obj, "title"):
         title = title_or_obj.title
         content = getattr(title_or_obj, "content", "")
         color = getattr(title_or_obj, "color", "card-peach")
         category = getattr(title_or_obj, "category", "General")
+        assigned_at = getattr(title_or_obj, "assigned_at", None)
+        due_at = getattr(title_or_obj, "due_at", None)
     else:
         title = title_or_obj
 
-    sql = "INSERT INTO Notas (title, content, color, category, is_favorite, in_trash) VALUES (?, ?, ?, ?, 0, 0);"
-    return query_turso(sql, [title, content, color, category])
+    sql = "INSERT INTO Notas (title, content, color, category, is_favorite, in_trash, assigned_at, due_at) VALUES (?, ?, ?, ?, 0, 0, ?, ?);"
+    return query_turso(sql, [title, content, color, category, assigned_at, due_at])
 
 def get_favorites():
-    return query_turso("SELECT id, title, content, color, category, is_favorite, in_trash FROM Notas WHERE in_trash = 0 AND is_favorite = 1 ORDER BY id DESC;")
+    return query_turso("SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE in_trash = 0 AND is_favorite = 1 ORDER BY id DESC;")
 
 def toggle_favorite(note_id: int, is_favorite: bool):
     val = 1 if is_favorite else 0
     return query_turso("UPDATE Notas SET is_favorite = ? WHERE id = ?;", [val, note_id])
 
 def get_trash():
-    return query_turso("SELECT id, title, content, color, category, is_favorite, in_trash FROM Notas WHERE in_trash = 1 ORDER BY id DESC;")
+    return query_turso("SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE in_trash = 1 ORDER BY id DESC;")
 
 def move_to_trash(note_id: int, is_trash: bool = True):
     val = 1 if is_trash else 0
