@@ -523,6 +523,92 @@ document.addEventListener('DOMContentLoaded', () => {
                 icon: c.icon || '📁'
             })));
 
+        const folderOverview = document.getElementById('folder-overview');
+        if (folderOverview) {
+            if (classView || categoriesData.length === 0) {
+                folderOverview.hidden = true;
+                folderOverview.innerHTML = '';
+            } else {
+                const getFolderCount = folder => {
+                    const folderName = folder.name.toLowerCase().trim();
+                    return notesList.filter(note => {
+                        const noteCategory = String(note.category || 'General').toLowerCase().trim();
+                        if (noteCategory === folderName) return true;
+                        if (['proyectos', 'projects'].includes(folderName)) return ['proyectos', 'projects'].includes(noteCategory);
+                        if (['negocios', 'business'].includes(folderName)) return ['negocios', 'business', 'trabajo'].includes(noteCategory);
+                        if (['personal', 'casa'].includes(folderName)) return ['personal', 'casa'].includes(noteCategory);
+                        if (folderName === 'general') return noteCategory === 'general';
+                        return false;
+                    }).length;
+                };
+                const folderStats = categoriesData.map(folder => ({ ...folder, noteCount: getFolderCount(folder) }));
+                const totalNotes = folderStats.reduce((sum, folder) => sum + folder.noteCount, 0);
+                const mostUsed = [...folderStats].sort((a, b) => b.noteCount - a.noteCount)[0];
+                const parseCreatedAt = value => {
+                    if (!value) return null;
+                    const date = new Date(String(value).replace(' ', 'T'));
+                    return Number.isNaN(date.getTime()) ? null : date;
+                };
+                const startOfToday = new Date();
+                startOfToday.setHours(0, 0, 0, 0);
+                const weekDays = Array.from({ length: 7 }, (_, index) => {
+                    const day = new Date(startOfToday);
+                    day.setDate(day.getDate() - (6 - index));
+                    const count = notesList.filter(note => {
+                        const created = parseCreatedAt(note.created_at);
+                        return created && created.getFullYear() === day.getFullYear()
+                            && created.getMonth() === day.getMonth() && created.getDate() === day.getDate();
+                    }).length;
+                    return { day, count };
+                });
+                const weekTotal = weekDays.reduce((sum, item) => sum + item.count, 0);
+                const weekPeak = Math.max(1, ...weekDays.map(item => item.count));
+                const weekBars = weekDays.map(item => {
+                    const height = item.count ? Math.max(12, (item.count / weekPeak) * 100) : 4;
+                    const dayLabel = item.day.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '');
+                    return `<div class="activity-day" title="${dayLabel}: ${item.count} ${item.count === 1 ? 'apunte' : 'apuntes'}"><span class="activity-day-count">${item.count || ''}</span><div class="activity-day-track"><i style="height:${height}%"></i></div><small>${dayLabel}</small></div>`;
+                }).join('');
+                const recentNotes = notesList.map(note => ({ ...note, parsedCreatedAt: parseCreatedAt(note.created_at) }))
+                    .filter(note => note.parsedCreatedAt)
+                    .sort((a, b) => b.parsedCreatedAt - a.parsedCreatedAt)
+                    .slice(0, 4);
+                const recentList = recentNotes.length ? recentNotes.map(note => `
+                    <a class="activity-recent-note" href="./app.html?category=${encodeURIComponent(note.category || 'General')}">
+                        <span class="activity-recent-icon">✎</span>
+                        <span class="activity-recent-copy"><strong>${escapeHTML(note.title || 'Sin título')}</strong><small>${escapeHTML(note.category || 'General')}</small></span>
+                        <time>${note.parsedCreatedAt.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</time>
+                    </a>`).join('') : '<p class="activity-empty">Cuando guardes apuntes, aparecerán aquí.</p>';
+                const bars = folderStats.map(folder => {
+                    const share = totalNotes ? (folder.noteCount / totalNotes) * 100 : 0;
+                    return `<span class="folder-chart-segment" title="${escapeHTML(folder.name)}: ${folder.noteCount} notas" style="width:${share}%;background:${escapeHTML(folder.color)}"></span>`;
+                }).join('');
+                const legend = folderStats.map(folder => `
+                    <span class="folder-chart-legend-item"><i style="background:${escapeHTML(folder.color)}"></i>${escapeHTML(folder.name)} <b>${folder.noteCount}</b></span>
+                `).join('');
+                folderOverview.hidden = false;
+                folderOverview.innerHTML = `
+                    <div class="folder-overview-heading">
+                        <div><span class="folder-overview-kicker">TU RESUMEN</span><h3>Tu actividad ✨</h3><p>Has organizado ${totalNotes} ${totalNotes === 1 ? 'nota' : 'notas'} en ${folderStats.length} ${folderStats.length === 1 ? 'carpeta' : 'carpetas'}. ¡Sigue avanzando!</p></div>
+                        <span class="folder-overview-icon" aria-hidden="true">🌱</span>
+                    </div>
+                    <div class="folder-overview-content">
+                        <div class="folder-overview-stats">
+                            <div class="folder-stat"><span>Carpetas</span><strong>${folderStats.length}</strong></div>
+                            <div class="folder-stat"><span>Apuntes esta semana</span><strong>${weekTotal}</strong></div>
+                            <div class="folder-stat folder-stat-featured"><span>Más activa</span><strong>${escapeHTML(mostUsed.name)}</strong><small>${mostUsed.noteCount} ${mostUsed.noteCount === 1 ? 'nota' : 'notas'}</small></div>
+                        </div>
+                        <div class="folder-chart"><div class="folder-chart-title"><span>Notas por carpeta</span><span>${totalNotes} organizadas</span></div>
+                            <div class="folder-chart-bar" role="img" aria-label="Distribución de ${totalNotes} notas entre ${folderStats.length} carpetas">${bars}</div>
+                            <div class="folder-chart-legend">${legend}</div>
+                        </div>
+                    </div>
+                    <div class="activity-details">
+                        <div class="activity-weekly"><div class="folder-chart-title"><span>Tu ritmo esta semana</span><span>${weekTotal} ${weekTotal === 1 ? 'apunte creado' : 'apuntes creados'}</span></div><div class="activity-week-bars">${weekBars}</div></div>
+                        <div class="activity-recent"><div class="folder-chart-title"><span>Apuntes recientes</span><span>Últimos 4</span></div><div class="activity-recent-list">${recentList}</div></div>
+                    </div>`;
+            }
+        }
+
         notesGrid.innerHTML = '';
         let visibleCategories = categoriesData;
         if (classView && currentSearchQuery.trim()) {
