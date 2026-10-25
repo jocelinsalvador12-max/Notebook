@@ -23,6 +23,7 @@ export default defineConfig({
                 login: resolve(__dirname, 'src/frontend/login/index.html'),
                 favoritos: resolve(__dirname, 'src/frontend/favoritos.html'),
                 categorias: resolve(__dirname, 'src/frontend/categorias.html'),
+                clases: resolve(__dirname, 'src/frontend/clases.html'),
                 papelera: resolve(__dirname, 'src/frontend/papelera.html'),
             }
         }

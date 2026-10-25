@@ -1083,6 +1083,33 @@ body {
     width: 100%;
 }
 
+.classes-intro {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: -10px 0 22px;
+    padding: 14px 18px;
+    border: 1px solid rgba(186, 139, 232, 0.18);
+    border-radius: 14px;
+    background: linear-gradient(100deg, #fbf6ff, #fff8fb);
+    color: var(--text-body);
+    font-size: 13.5px;
+}
+
+.classes-intro::before {
+    content: '✎';
+    display: grid;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border-radius: 10px;
+    background: #f0e2fc;
+    color: #7c3aed;
+    font-size: 18px;
+    font-weight: 700;
+}
+
 .category-card {
     height: 164px;
     min-height: 164px;

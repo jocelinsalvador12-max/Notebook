@@ -34,9 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
         currentView = 'favorites';
     } else if (path.includes('papelera.html')) {
         currentView = 'trash';
-    } else if (path.includes('categorias.html')) {
+    } else if (path.includes('categorias.html') || path.includes('clases.html')) {
         currentView = 'categories';
     }
+    const classView = path.includes('clases.html');
 
     // Estado local para búsqueda y filtros reactivos en tiempo real
     let allNotesData = [];
@@ -501,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Renderizar carpetas / materias
     async function renderCategories() {
         if (!notesGrid) return;
-        notesGrid.innerHTML = '<p class="empty-msg">Cargando carpetas de Turso DB...</p>';
+        notesGrid.innerHTML = `<p class="empty-msg">Cargando ${classView ? 'clases' : 'carpetas'}...</p>`;
 
         const [dbCategories, allNotes] = await Promise.all([
             fetchAPI('/categories'),
@@ -520,7 +521,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         notesGrid.innerHTML = '';
         if (categoriesData.length === 0) {
-            notesGrid.innerHTML = '<p class="empty-msg">Aún no tienes carpetas. Crea una para empezar a organizar tus notas.</p>';
+            notesGrid.innerHTML = classView
+                ? '<p class="empty-msg">Aún no tienes clases. Crea tu primera clase y guarda ahí tus apuntes.</p>'
+                : '<p class="empty-msg">Aún no tienes carpetas. Crea una para empezar a organizar tus notas.</p>';
         }
         categoriesData.forEach(cat => {
             const catNameLower = cat.name.toLowerCase().trim();
@@ -539,12 +542,12 @@ document.addEventListener('DOMContentLoaded', () => {
             card.style.backgroundColor = cat.color;
             card.innerHTML = `
                 <div class="category-card-top">
-                    <span class="category-icon">${cat.icon}</span>
-                    ${cat.id ? `<button class="btn-delete-folder" title="Eliminar carpeta" data-id="${cat.id}">&times;</button>` : ''}
+                    <span class="category-icon">${classView ? '📚' : cat.icon}</span>
+                    ${cat.id ? `<button class="btn-delete-folder" title="${classView ? 'Eliminar clase' : 'Eliminar carpeta'}" data-id="${cat.id}">&times;</button>` : ''}
                 </div>
                 <h3 class="category-title">${escapeHTML(cat.name)}</h3>
-                <span class="category-count">${count} ${count === 1 ? 'nota guardada' : 'notas guardadas'}</span>
-                <span class="category-open-hint">Abrir y crear notas →</span>
+                <span class="category-count">${count} ${classView ? (count === 1 ? 'apunte' : 'apuntes') : (count === 1 ? 'nota guardada' : 'notas guardadas')}</span>
+                <span class="category-open-hint">${classView ? 'Ver apuntes de la clase →' : 'Abrir y crear notas →'}</span>
             `;
 
             if (cat.id) {
@@ -556,8 +559,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const editButton = document.createElement('button');
                 editButton.className = 'btn-edit-folder';
                 editButton.type = 'button';
-                editButton.title = 'Editar nombre de carpeta';
-                editButton.setAttribute('aria-label', 'Editar carpeta ' + cat.name);
+                editButton.title = classView ? 'Editar nombre de clase' : 'Editar nombre de carpeta';
+                editButton.setAttribute('aria-label', `${classView ? 'Editar clase' : 'Editar carpeta'} ${cat.name}`);
                 editButton.textContent = '✎';
                 actions.appendChild(editButton);
                 cardTop.appendChild(actions);
@@ -572,7 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnEdit) {
                 btnEdit.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    const name = prompt('Nuevo nombre para la carpeta:', cat.name);
+                    const name = prompt(`Nuevo nombre para ${classView ? 'la clase' : 'la carpeta'}:`, cat.name);
                     if (!name || !name.trim() || name.trim() === cat.name) return;
                     const updated = await fetchAPI('/categories/' + cat.id, 'PUT', { name: name.trim() });
                     if (updated) {
@@ -588,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnDel) {
                 btnDel.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (confirm('¿Eliminar la carpeta "' + cat.name + '"?')) {
+                    if (confirm(`¿Eliminar ${classView ? 'la clase' : 'la carpeta'} "${cat.name}"?`)) {
                         if (cat.id) {
                             await fetchAPI('/categories/' + cat.id, 'DELETE');
                         }
@@ -645,20 +648,20 @@ document.addEventListener('DOMContentLoaded', () => {
             folderModalSave.onclick = async () => {
                 const name = folderNameInput ? folderNameInput.value.trim() : '';
                 if (!name) {
-                    alert('Por favor ingresa un nombre para la materia o carpeta.');
+                    alert(classView ? 'Escribe el nombre de la clase.' : 'Por favor ingresa un nombre para la materia o carpeta.');
                     return;
                 }
                 const color = folderColorVal ? folderColorVal.value : '#FCF5BF';
                 folderModalSave.disabled = true;
-                folderModalSave.textContent = 'Creando...';
+                folderModalSave.textContent = classView ? 'Creando clase...' : 'Creando...';
                 const res = await fetchAPI('/categories', 'POST', { name, color, icon: '📁' });
                 folderModalSave.disabled = false;
-                folderModalSave.textContent = 'Crear Carpeta';
+                folderModalSave.textContent = classView ? 'Crear clase' : 'Crear Carpeta';
                 if (res) {
                     closeFModal();
                     renderCategories();
                 } else {
-                    alert('Error al crear la carpeta.');
+                    alert(classView ? 'No se pudo crear la clase.' : 'Error al crear la carpeta.');
                 }
             };
         }
