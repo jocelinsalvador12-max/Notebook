@@ -11,6 +11,7 @@ Table Notas {
   in_trash integer [not null, default: 0]
   assigned_at text
   due_at text
+  created_at datetime
   owner_id text
 }
 

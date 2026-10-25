@@ -32,7 +32,7 @@ const db = createClient({
 app.get('/api/notes', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE owner_id = ? AND in_trash = 0 ORDER BY id DESC',
+            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at, created_at FROM Notas WHERE owner_id = ? AND in_trash = 0 ORDER BY id DESC',
             args: [req.workspaceId]
         });
         res.json(result.rows);
@@ -47,7 +47,7 @@ app.post('/api/notes', async (req, res) => {
     const { title, content, color, category, assigned_at, due_at } = req.body;
     try {
         const result = await db.execute({
-            sql: `INSERT INTO Notas (title, content, color, category, is_favorite, in_trash, assigned_at, due_at, owner_id) VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?)`,
+            sql: `INSERT INTO Notas (title, content, color, category, is_favorite, in_trash, assigned_at, due_at, owner_id, created_at) VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?)`,
             args: [
                 title || 'Sin título',
                 content || '',
@@ -55,7 +55,8 @@ app.post('/api/notes', async (req, res) => {
                 category || '',
                 assigned_at || null,
                 due_at || null,
-                req.workspaceId
+                req.workspaceId,
+                new Date().toISOString()
             ]
         });
         const newId = result.lastInsertRowid ? Number(result.lastInsertRowid) : null;
@@ -279,6 +280,11 @@ async function initializeWorkspaceSchema() {
         if (!columns.rows.some(column => column.name === 'owner_id')) {
             await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
         }
+    }
+
+    const noteColumns = await db.execute('PRAGMA table_info(Notas)');
+    if (!noteColumns.rows.some(column => column.name === 'created_at')) {
+        await db.execute('ALTER TABLE Notas ADD COLUMN created_at TEXT');
     }
 }
 

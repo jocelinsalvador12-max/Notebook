@@ -296,12 +296,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cargar la vista actual desde el backend
     async function loadCurrentView() {
-        if (!notesGrid) return;
-
         if (currentView === 'categories') {
             renderCategories();
             return;
         }
+        if (!notesGrid) return;
 
         notesGrid.innerHTML = '<p class="empty-msg">Cargando notas de Turso DB...</p>';
 
@@ -505,8 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Renderizar carpetas / materias
     async function renderCategories() {
-        if (!notesGrid) return;
-        notesGrid.innerHTML = `<p class="empty-msg">Cargando ${classView ? 'clases' : 'carpetas'}...</p>`;
+        const folderOverview = document.getElementById('folder-overview');
+        if (!notesGrid && !folderOverview) return;
+        if (notesGrid) notesGrid.innerHTML = `<p class="empty-msg">Cargando ${classView ? 'clases' : 'carpetas'}...</p>`;
 
         const [dbCategories, allNotes] = await Promise.all([
             fetchAPI('/categories'),
@@ -523,9 +523,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 icon: c.icon || '📁'
             })));
 
-        const folderOverview = document.getElementById('folder-overview');
         if (folderOverview) {
-            if (classView || categoriesData.length === 0) {
+            if (classView) {
                 folderOverview.hidden = true;
                 folderOverview.innerHTML = '';
             } else {
@@ -543,7 +542,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 const folderStats = categoriesData.map(folder => ({ ...folder, noteCount: getFolderCount(folder) }));
                 const totalNotes = folderStats.reduce((sum, folder) => sum + folder.noteCount, 0);
-                const mostUsed = [...folderStats].sort((a, b) => b.noteCount - a.noteCount)[0];
+                const mostUsed = [...folderStats].sort((a, b) => b.noteCount - a.noteCount)[0]
+                    || { name: 'Sin actividad aún', noteCount: 0 };
                 const parseCreatedAt = value => {
                     if (!value) return null;
                     const date = new Date(String(value).replace(' ', 'T'));
@@ -569,26 +569,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `<div class="activity-day" title="${dayLabel}: ${item.count} ${item.count === 1 ? 'apunte' : 'apuntes'}"><span class="activity-day-count">${item.count || ''}</span><div class="activity-day-track"><i style="height:${height}%"></i></div><small>${dayLabel}</small></div>`;
                 }).join('');
                 const recentNotes = notesList.map(note => ({ ...note, parsedCreatedAt: parseCreatedAt(note.created_at) }))
-                    .filter(note => note.parsedCreatedAt)
-                    .sort((a, b) => b.parsedCreatedAt - a.parsedCreatedAt)
+                    .sort((a, b) => (b.parsedCreatedAt?.getTime() || Number(b.id) || 0) - (a.parsedCreatedAt?.getTime() || Number(a.id) || 0))
                     .slice(0, 4);
                 const recentList = recentNotes.length ? recentNotes.map(note => `
                     <a class="activity-recent-note" href="./app.html?category=${encodeURIComponent(note.category || 'General')}">
                         <span class="activity-recent-icon">✎</span>
                         <span class="activity-recent-copy"><strong>${escapeHTML(note.title || 'Sin título')}</strong><small>${escapeHTML(note.category || 'General')}</small></span>
-                        <time>${note.parsedCreatedAt.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</time>
+                        <time>${note.parsedCreatedAt ? note.parsedCreatedAt.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Reciente'}</time>
                     </a>`).join('') : '<p class="activity-empty">Cuando guardes apuntes, aparecerán aquí.</p>';
                 const bars = folderStats.map(folder => {
                     const share = totalNotes ? (folder.noteCount / totalNotes) * 100 : 0;
                     return `<span class="folder-chart-segment" title="${escapeHTML(folder.name)}: ${folder.noteCount} notas" style="width:${share}%;background:${escapeHTML(folder.color)}"></span>`;
                 }).join('');
-                const legend = folderStats.map(folder => `
+                const legend = folderStats.length ? folderStats.map(folder => `
                     <span class="folder-chart-legend-item"><i style="background:${escapeHTML(folder.color)}"></i>${escapeHTML(folder.name)} <b>${folder.noteCount}</b></span>
-                `).join('');
+                `).join('') : '<span class="activity-empty">Aún no hay carpetas para mostrar en la gráfica.</span>';
                 folderOverview.hidden = false;
                 folderOverview.innerHTML = `
                     <div class="folder-overview-heading">
-                        <div><span class="folder-overview-kicker">TU RESUMEN</span><h3>Tu actividad ✨</h3><p>Has organizado ${totalNotes} ${totalNotes === 1 ? 'nota' : 'notas'} en ${folderStats.length} ${folderStats.length === 1 ? 'carpeta' : 'carpetas'}. ¡Sigue avanzando!</p></div>
+                        <div><span class="folder-overview-kicker">TU RESUMEN</span><h3>${totalNotes ? '¡Vas avanzando!' : 'Tu espacio empieza aquí'}</h3><p>${totalNotes ? `Has organizado ${totalNotes} ${totalNotes === 1 ? 'nota' : 'notas'} en ${folderStats.length} ${folderStats.length === 1 ? 'carpeta' : 'carpetas'}.` : 'Cuando guardes apuntes, verás aquí tu progreso.'}</p></div>
                         <span class="folder-overview-icon" aria-hidden="true">🌱</span>
                     </div>
                     <div class="folder-overview-content">
@@ -609,9 +608,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        if (!notesGrid) return;
         notesGrid.innerHTML = '';
         let visibleCategories = categoriesData;
-        if (classView && currentSearchQuery.trim()) {
+        if (currentSearchQuery.trim()) {
             const query = currentSearchQuery.trim().toLowerCase();
             visibleCategories = categoriesData.filter(category => {
                 if (category.name.toLowerCase().includes(query)) return true;
@@ -622,13 +622,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        const folderListHeading = document.querySelector('.folder-list-heading');
+        const folderListCount = document.getElementById('folder-list-count');
+        if (folderListHeading) folderListHeading.hidden = categoriesData.length === 0;
+        if (folderListCount) folderListCount.textContent = `${visibleCategories.length} ${visibleCategories.length === 1 ? 'carpeta' : 'carpetas'}`;
+
         if (categoriesData.length === 0) {
             notesGrid.innerHTML = classView
                 ? '<p class="empty-msg">Aún no tienes clases. Crea tu primera clase y guarda ahí tus apuntes.</p>'
                 : '<p class="empty-msg">Aún no tienes carpetas. Crea una para empezar a organizar tus notas.</p>';
         }
-        if (classView && categoriesData.length > 0 && visibleCategories.length === 0) {
-            notesGrid.innerHTML = `<p class="empty-msg">No encontré clases ni apuntes que coincidan con “${escapeHTML(currentSearchQuery)}”.</p>`;
+        if (categoriesData.length > 0 && visibleCategories.length === 0) {
+            notesGrid.innerHTML = `<p class="empty-msg">No encontré ${classView ? 'clases' : 'carpetas'} ni apuntes que coincidan con “${escapeHTML(currentSearchQuery)}”.</p>`;
         }
         visibleCategories.forEach(cat => {
             const catNameLower = cat.name.toLowerCase().trim();
@@ -643,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }).length;
 
             const card = document.createElement('article');
-            card.className = 'category-card';
+            card.className = classView ? 'category-card' : 'category-card folder-category-card';
             card.style.backgroundColor = cat.color;
             card.innerHTML = `
                 <div class="category-card-top">
@@ -652,7 +657,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <h3 class="category-title">${escapeHTML(cat.name)}</h3>
                 <span class="category-count">${count} ${classView ? (count === 1 ? 'apunte' : 'apuntes') : (count === 1 ? 'nota guardada' : 'notas guardadas')}</span>
-                <span class="category-open-hint">${classView ? 'Ver apuntes de la clase →' : 'Abrir y crear notas →'}</span>
+                ${!classView ? '<span class="folder-card-bottom"><span>Explorar carpeta</span><b aria-hidden="true">↗</b></span>' : ''}
+                ${classView ? '<span class="category-open-hint">Ver apuntes de la clase →</span>' : ''}
             `;
 
             if (cat.id) {
@@ -769,7 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
             folderModalSave.onclick = async () => {
                 const name = folderNameInput ? folderNameInput.value.trim() : '';
                 if (!name) {
-                    alert(classView ? 'Escribe el nombre de la clase.' : 'Por favor ingresa un nombre para la materia o carpeta.');
+                    alert(classView ? 'Escribe el nombre de la clase.' : 'Por favor ingresa un nombre para la carpeta.');
                     return;
                 }
                 const color = folderColorVal ? folderColorVal.value : '#FCF5BF';

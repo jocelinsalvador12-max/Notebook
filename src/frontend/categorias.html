@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notebook - Carpetas</title>
+    <title>Notebook - Tu actividad</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
@@ -73,15 +73,8 @@
             </div>
         </aside>
 
-        <main class="main-content">
+        <main class="main-content activity-page">
             <header class="top-navbar">
-                <div class="search-box">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <input type="text" id="search-input" placeholder="Buscar materias o notas..." autocomplete="off" />
-                    <button id="search-clear-btn" class="search-clear" title="Limpiar búsqueda" style="display:none;">×</button>
-                </div>
                 <div class="user-profile">
                     <div class="avatar-wrapper">
                         <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="avatar-img" />
@@ -97,51 +90,14 @@
                 </div>
             </header>
 
-            <section class="action-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <h2 style="font-size:1.4rem;font-weight:700;color:var(--text-title);margin:0; display:flex; align-items:center; gap:10px;">
-                    📁 Mis carpetas
-                </h2>
-                <button id="btn-add-folder" class="btn-save" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; border: none; background: #7C3AED; color: white; box-shadow: 0 4px 14px rgba(124,58,237,0.3);">
-                    <span>➕ Nueva carpeta</span>
-                </button>
+            <section class="activity-page-heading">
+                <span class="activity-page-eyebrow">TU ESPACIO PERSONAL</span>
+                <h1>Tu actividad <span aria-hidden="true">✦</span></h1>
+                <p>Un vistazo a lo que has aprendido, escrito y organizado.</p>
             </section>
 
-            <section id="folder-overview" class="folder-overview" aria-label="Resumen de tus carpetas"></section>
-            <div class="categories-grid"><!-- Se llena automáticamente con JS --></div>
+            <section id="folder-overview" class="folder-overview activity-dashboard" aria-label="Resumen de tu actividad"></section>
         </main>
-    </div>
-
-    <!-- Modal para crear carpeta personalizada -->
-    <div id="folder-modal" class="editor-modal">
-        <div class="editor-content" style="max-width: 440px;">
-            <div class="modal-header">
-                <h2>Nueva carpeta</h2>
-                <button id="folder-modal-close" class="modal-close-btn">&times;</button>
-            </div>
-            <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">Crea una carpeta para organizar tus notas:</p>
-            
-            <label for="folder-name-input" style="font-size: 13px; font-weight: 600; color: var(--text-body);">Nombre de la carpeta:</label>
-            <input type="text" id="folder-name-input" placeholder="Ej. Ideas, Lecturas, Proyecto nuevo..." required />
-
-            <div class="form-row">
-                <div class="color-picker-container">
-                    <label>Color de la carpeta:</label>
-                    <div class="color-swatches" id="folder-color-swatches">
-                        <button type="button" class="swatch-btn selected" data-color="#FCF5BF" style="background-color: #FCF5BF;" title="Amarillo pastel"></button>
-                        <button type="button" class="swatch-btn" data-color="#A8DEFA" style="background-color: #A8DEFA;" title="Azul pastel"></button>
-                        <button type="button" class="swatch-btn" data-color="#FF99C8" style="background-color: #FF99C8;" title="Rosa pastel"></button>
-                        <button type="button" class="swatch-btn" data-color="#D0F4E0" style="background-color: #D0F4E0;" title="Menta pastel"></button>
-                        <button type="button" class="swatch-btn" data-color="#E8C0FC" style="background-color: #E8C0FC;" title="Lavanda pastel"></button>
-                    </div>
-                    <input type="hidden" id="folder-color-val" value="#FCF5BF" />
-                </div>
-            </div>
-
-            <div class="modal-actions">
-                <button id="folder-modal-cancel" class="btn-cancel">Cancelar</button>
-                <button id="folder-modal-save" class="btn-save">Crear Carpeta</button>
-            </div>
-        </div>
     </div>
 
     <script type="module" src="./script.js"></script>
