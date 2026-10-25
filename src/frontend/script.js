@@ -337,6 +337,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Filtrar y renderizar en base a categoría y búsqueda
     function applyFiltersAndRender() {
         if (!notesGrid) return;
+        if (classView) {
+            renderCategories();
+            return;
+        }
 
         let filtered = [...allNotesData];
 
@@ -520,12 +524,27 @@ document.addEventListener('DOMContentLoaded', () => {
             })));
 
         notesGrid.innerHTML = '';
+        let visibleCategories = categoriesData;
+        if (classView && currentSearchQuery.trim()) {
+            const query = currentSearchQuery.trim().toLowerCase();
+            visibleCategories = categoriesData.filter(category => {
+                if (category.name.toLowerCase().includes(query)) return true;
+                return notesList.some(note =>
+                    String(note.category || '').toLowerCase() === category.name.toLowerCase()
+                    && `${note.title || ''} ${note.content || ''}`.toLowerCase().includes(query)
+                );
+            });
+        }
+
         if (categoriesData.length === 0) {
             notesGrid.innerHTML = classView
                 ? '<p class="empty-msg">Aún no tienes clases. Crea tu primera clase y guarda ahí tus apuntes.</p>'
                 : '<p class="empty-msg">Aún no tienes carpetas. Crea una para empezar a organizar tus notas.</p>';
         }
-        categoriesData.forEach(cat => {
+        if (classView && categoriesData.length > 0 && visibleCategories.length === 0) {
+            notesGrid.innerHTML = `<p class="empty-msg">No encontré clases ni apuntes que coincidan con “${escapeHTML(currentSearchQuery)}”.</p>`;
+        }
+        visibleCategories.forEach(cat => {
             const catNameLower = cat.name.toLowerCase().trim();
             const count = notesList.filter(n => {
                 const noteCat = (n.category || 'General').toLowerCase().trim();
@@ -567,9 +586,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-delete-folder, .btn-edit-folder')) return;
+                if (e.target.closest('.btn-delete-folder, .btn-edit-folder, .class-note-add')) return;
                 window.location.href = `./app.html?category=${encodeURIComponent(cat.name)}`;
             });
+
+            if (classView) {
+                card.style.height = 'auto';
+                card.style.minHeight = '205px';
+                const addNoteButton = document.createElement('button');
+                addNoteButton.type = 'button';
+                addNoteButton.className = 'class-note-add';
+                addNoteButton.textContent = '+ Añadir apunte';
+                addNoteButton.setAttribute('aria-label', `Añadir apunte a ${cat.name}`);
+                addNoteButton.addEventListener('click', event => {
+                    event.stopPropagation();
+                    window.location.href = `./app.html?category=${encodeURIComponent(cat.name)}&newNote=1`;
+                });
+                card.appendChild(addNoteButton);
+            }
 
             const btnEdit = card.querySelector('.btn-edit-folder');
             if (btnEdit) {
@@ -816,6 +850,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnAddNote) btnAddNote.addEventListener('click', openModal);
     if (btnSidebarAddNew) btnSidebarAddNew.addEventListener('click', openModal);
+    document.getElementById('btn-quick-class-note')?.addEventListener('click', () => {
+        window.location.href = './app.html?newNote=1';
+    });
     if (btnCancel) btnCancel.addEventListener('click', closeModal);
     if (modalCloseIcon) modalCloseIcon.addEventListener('click', closeModal);
 
@@ -861,6 +898,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Carga inicial
     renderSidebarFolders();
     loadCurrentView();
+    if (currentView === 'notes' && new URLSearchParams(window.location.search).get('newNote') === '1') {
+        openModal();
+    }
     if (currentView !== 'notes') refreshNotifications();
     window.setInterval(refreshNotifications, 60 * 1000);
 });

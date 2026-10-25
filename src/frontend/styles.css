@@ -1110,6 +1110,41 @@ body {
     font-weight: 700;
 }
 
+.btn-quick-class-note {
+    padding: 10px 16px;
+    border: 1px solid #d9c3f1;
+    border-radius: 12px;
+    background: #fff;
+    color: #7137a7;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.btn-quick-class-note:hover {
+    background: #f8f1ff;
+}
+
+.class-note-add {
+    align-self: flex-start;
+    margin-top: 2px;
+    padding: 6px 10px;
+    border: 1px solid rgba(91, 49, 122, 0.18);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.68);
+    color: #5d347a;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.class-note-add:hover {
+    background: #fff;
+    border-color: rgba(91, 49, 122, 0.35);
+}
+
 .category-card {
     height: 164px;
     min-height: 164px;
