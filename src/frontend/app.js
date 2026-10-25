@@ -2,7 +2,14 @@
 // CONFIGURACIÓN Y ESTADO GLOBAL
 // ==========================================
 // Apuntamos al puerto donde está ejecutándose el servidor Express
-const API_URL = 'http://localhost:5080/api';
+const API_URL = '/api';
+const WORKSPACE_KEY = 'notebookWorkspaceId';
+let workspaceId = localStorage.getItem(WORKSPACE_KEY);
+if (!workspaceId) {
+  workspaceId = crypto.randomUUID();
+  localStorage.setItem(WORKSPACE_KEY, workspaceId);
+}
+const API_HEADERS = { 'X-Workspace-Id': workspaceId };
 
 // Elementos del DOM
 const notesContainer = document.getElementById('notes-container');
@@ -58,7 +65,7 @@ if (btnCategories) {
 
 async function cargarNotas(endpoint = '/notes') {
   try {
-    const response = await fetch(`${API_URL}${endpoint}`);
+    const response = await fetch(`${API_URL}${endpoint}`, { headers: API_HEADERS });
     if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
 
     const notas = await response.json();
@@ -122,7 +129,7 @@ if (btnSaveNote) {
     try {
       const response = await fetch(`${API_URL}/notes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...API_HEADERS },
         body: JSON.stringify({ title, content, color })
       });
 
@@ -178,7 +185,7 @@ window.toggleFavorito = async function (id, estadoActual) {
   try {
     await fetch(`${API_URL}/notes/${id}/favorite`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...API_HEADERS },
       body: JSON.stringify({ is_favorite: !estadoActual })
     });
     determinarVistaYRecargar();
@@ -191,7 +198,7 @@ window.moverAPapelera = async function (id) {
   try {
     await fetch(`${API_URL}/notes/${id}/trash`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...API_HEADERS },
       body: JSON.stringify({ is_trashed: true })
     });
     determinarVistaYRecargar();

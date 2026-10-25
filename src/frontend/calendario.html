@@ -435,6 +435,12 @@
     <script type="module" src="./script.js"></script>
     <script>
     (() => {
+        const workspaceKey = 'notebookWorkspaceId';
+        let workspaceId = localStorage.getItem(workspaceKey);
+        if (!workspaceId) {
+            workspaceId = crypto.randomUUID();
+            localStorage.setItem(workspaceKey, workspaceId);
+        }
         const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
         const DIAS_CORTOS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 
@@ -760,7 +766,9 @@
         let notesWithDates = [];
         async function loadCalendarNotes() {
             try {
-                const res = await fetch('http://localhost:5080/api/notes');
+                const res = await fetch('/api/notes', {
+                    headers: { 'X-Workspace-Id': workspaceId }
+                });
                 if (res.ok) {
                     const data = await res.json();
                     notesWithDates = Array.isArray(data) ? data : [];

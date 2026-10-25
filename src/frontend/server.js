@@ -1,28 +1,39 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@libsql/client');
+require('dotenv').config();
 
 const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json());
-const permanentFolderNames = new Set([
-    'proyectos', 'projects',
-    'negocios', 'business', 'trabajo',
-    'personal', 'casa',
-    'general'
-]);
+
+app.use('/api', async (req, res, next) => {
+    try {
+        await workspaceSchemaReady;
+    } catch (error) {
+        console.error('No se pudo preparar la base de datos:', error);
+        return res.status(500).json({ error: 'No se pudo preparar la base de datos.' });
+    }
+    const workspaceId = String(req.get('X-Workspace-Id') || '');
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(workspaceId)) {
+        return res.status(400).json({ error: 'No se encontró el espacio de trabajo del navegador.' });
+    }
+    req.workspaceId = workspaceId;
+    next();
+});
 
 // Conexión directa a Turso con credenciales
 const db = createClient({
-    url: 'libsql://notebook-jocelinsalvador.aws-us-west-2.turso.io',
-    authToken: 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODk3ODc0OTQsImlkIjoiMDFhMDdjYjMtMTIwMS03YWU0LTkxNGUtMDczZDhkNGQ0NGQxIiwia2lkIjoiVzF5UmdJSk83R0tYZU9icF93aXBuYU1ySUVKcjRjakZhZV9LdzFKS0hiWSIsInJpZCI6IjhjNGM1MTc4LWY1NTctNGVjYS1iYjlkLTAzYTBjN2QyMzVlYyJ9.8HZ5x7eHFz6xXBZAWHIn9jHf4y__9t4tMCN45HDBBKySaeOjWQplPVoFrMPbOybcTJI_ZE2wdJ2k5cznB17rBQ'
+    url: process.env.TURSO_DATABASE_URL,
+    authToken: process.env.TURSO_AUTH_TOKEN
 });
 
 // GET: Obtener todas las notas activas (no en papelera)
 app.get('/api/notes', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE in_trash = 0 ORDER BY id DESC'
+            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE owner_id = ? AND in_trash = 0 ORDER BY id DESC',
+            args: [req.workspaceId]
         });
         res.json(result.rows);
     } catch (error) {
@@ -36,14 +47,15 @@ app.post('/api/notes', async (req, res) => {
     const { title, content, color, category, assigned_at, due_at } = req.body;
     try {
         const result = await db.execute({
-            sql: `INSERT INTO Notas (title, content, color, category, is_favorite, in_trash, assigned_at, due_at) VALUES (?, ?, ?, ?, 0, 0, ?, ?)`,
+            sql: `INSERT INTO Notas (title, content, color, category, is_favorite, in_trash, assigned_at, due_at, owner_id) VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?)`,
             args: [
                 title || 'Sin título',
                 content || '',
                 color || 'card-peach',
-                category || 'General',
+                category || '',
                 assigned_at || null,
-                due_at || null
+                due_at || null,
+                req.workspaceId
             ]
         });
         const newId = result.lastInsertRowid ? Number(result.lastInsertRowid) : null;
@@ -58,7 +70,8 @@ app.post('/api/notes', async (req, res) => {
 app.get('/api/favorites', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE in_trash = 0 AND is_favorite = 1 ORDER BY id DESC'
+            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE owner_id = ? AND in_trash = 0 AND is_favorite = 1 ORDER BY id DESC',
+            args: [req.workspaceId]
         });
         res.json(result.rows);
     } catch (error) {
@@ -75,8 +88,8 @@ const handleFavorite = async (req, res) => {
 
     try {
         await db.execute({
-            sql: 'UPDATE Notas SET is_favorite = ? WHERE id = ?',
-            args: [val, id]
+            sql: 'UPDATE Notas SET is_favorite = ? WHERE id = ? AND owner_id = ?',
+            args: [val, id, req.workspaceId]
         });
         res.json({ success: true, id, is_favorite: val });
     } catch (error) {
@@ -91,7 +104,8 @@ app.patch('/api/notes/:id/favorite', handleFavorite);
 app.get('/api/trash', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE in_trash = 1 ORDER BY id DESC'
+            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE owner_id = ? AND in_trash = 1 ORDER BY id DESC',
+            args: [req.workspaceId]
         });
         res.json(result.rows);
     } catch (error) {
@@ -108,8 +122,8 @@ const handleTrash = async (req, res) => {
 
     try {
         await db.execute({
-            sql: 'UPDATE Notas SET in_trash = ? WHERE id = ?',
-            args: [val, id]
+            sql: 'UPDATE Notas SET in_trash = ? WHERE id = ? AND owner_id = ?',
+            args: [val, id, req.workspaceId]
         });
         res.json({ success: true, id, in_trash: val });
     } catch (error) {
@@ -125,8 +139,8 @@ app.delete('/api/notes/:id', async (req, res) => {
     const { id } = req.params;
     try {
         await db.execute({
-            sql: 'DELETE FROM Notas WHERE id = ?',
-            args: [id]
+            sql: 'DELETE FROM Notas WHERE id = ? AND owner_id = ?',
+            args: [id, req.workspaceId]
         });
         res.json({ success: true, message: 'Nota eliminada permanentemente' });
     } catch (error) {
@@ -141,8 +155,8 @@ const handleNoteCategory = async (req, res) => {
     const { category } = req.body;
     try {
         await db.execute({
-            sql: 'UPDATE Notas SET category = ? WHERE id = ?',
-            args: [category || 'General', id]
+            sql: 'UPDATE Notas SET category = ? WHERE id = ? AND owner_id = ?',
+            args: [category || 'General', id, req.workspaceId]
         });
         res.json({ success: true, id, category: category || 'General', message: 'Nota movida a la carpeta' });
     } catch (error) {
@@ -156,7 +170,10 @@ app.patch('/api/notes/:id/category', handleNoteCategory);
 // GET: Categorías / Carpetas disponibles
 app.get('/api/categories', async (req, res) => {
     try {
-        const result = await db.execute('SELECT * FROM Categorias ORDER BY id ASC');
+        const result = await db.execute({
+            sql: 'SELECT * FROM Categorias WHERE owner_id = ? ORDER BY id ASC',
+            args: [req.workspaceId]
+        });
         res.json(result.rows);
     } catch (error) {
         console.error('Error al consultar categorías:', error);
@@ -171,22 +188,20 @@ app.post('/api/categories', async (req, res) => {
         return res.status(400).json({ error: 'El nombre de la carpeta es requerido' });
     }
     try {
-        if (permanentFolderNames.has(name.trim().toLowerCase())) {
-            return res.status(409).json({ error: 'Ese nombre está reservado para una carpeta permanente' });
-        }
         const duplicate = await db.execute({
-            sql: 'SELECT id FROM Categorias WHERE lower(name) = lower(?) LIMIT 1',
-            args: [name.trim()]
+            sql: 'SELECT id FROM Categorias WHERE owner_id = ? AND lower(name) = lower(?) LIMIT 1',
+            args: [req.workspaceId, name.trim()]
         });
         if (duplicate.rows.length > 0) {
             return res.status(409).json({ error: 'Ya existe una carpeta con ese nombre' });
         }
         const result = await db.execute({
-            sql: 'INSERT INTO Categorias (name, color, icon) VALUES (?, ?, ?)',
+            sql: 'INSERT INTO Categorias (name, color, icon, owner_id) VALUES (?, ?, ?, ?)',
             args: [
                 name.trim(),
                 color || '#FCF5BF',
-                icon || '📁'
+                icon || '📁',
+                req.workspaceId
             ]
         });
         const newId = result.lastInsertRowid ? Number(result.lastInsertRowid) : null;
@@ -206,31 +221,25 @@ app.put('/api/categories/:id', async (req, res) => {
     }
     try {
         const currentResult = await db.execute({
-            sql: 'SELECT id, name FROM Categorias WHERE id = ?',
-            args: [id]
+            sql: 'SELECT id, name FROM Categorias WHERE id = ? AND owner_id = ?',
+            args: [id, req.workspaceId]
         });
         const current = currentResult.rows[0];
         if (!current) return res.status(404).json({ error: 'No se encontró la carpeta' });
-        if (permanentFolderNames.has(String(current.name).trim().toLowerCase())) {
-            return res.status(403).json({ error: 'Las carpetas permanentes no se pueden editar' });
-        }
-        if (permanentFolderNames.has(name.toLowerCase())) {
-            return res.status(409).json({ error: 'Ese nombre está reservado para una carpeta permanente' });
-        }
         const duplicate = await db.execute({
-            sql: 'SELECT id FROM Categorias WHERE lower(name) = lower(?) AND id <> ? LIMIT 1',
-            args: [name, id]
+            sql: 'SELECT id FROM Categorias WHERE owner_id = ? AND lower(name) = lower(?) AND id <> ? LIMIT 1',
+            args: [req.workspaceId, name, id]
         });
         if (duplicate.rows.length > 0) {
             return res.status(409).json({ error: 'Ya existe una carpeta con ese nombre' });
         }
         await db.execute({
-            sql: 'UPDATE Categorias SET name = ? WHERE id = ?',
-            args: [name, id]
+            sql: 'UPDATE Categorias SET name = ? WHERE id = ? AND owner_id = ?',
+            args: [name, id, req.workspaceId]
         });
         await db.execute({
-            sql: 'UPDATE Notas SET category = ? WHERE lower(category) = lower(?)',
-            args: [name, current.name]
+            sql: 'UPDATE Notas SET category = ? WHERE owner_id = ? AND lower(category) = lower(?)',
+            args: [name, req.workspaceId, current.name]
         });
         res.json({ success: true, id, name, message: 'Carpeta actualizada' });
     } catch (error) {
@@ -244,16 +253,18 @@ app.delete('/api/categories/:id', async (req, res) => {
     const { id } = req.params;
     try {
         const result = await db.execute({
-            sql: 'SELECT name FROM Categorias WHERE id = ?',
-            args: [id]
+            sql: 'SELECT name FROM Categorias WHERE id = ? AND owner_id = ?',
+            args: [id, req.workspaceId]
         });
         const folder = result.rows[0];
-        if (folder && permanentFolderNames.has(String(folder.name).trim().toLowerCase())) {
-            return res.status(403).json({ error: 'Las carpetas permanentes no se pueden eliminar' });
-        }
+        if (!folder) return res.status(404).json({ error: 'No se encontró la carpeta' });
         await db.execute({
-            sql: 'DELETE FROM Categorias WHERE id = ?',
-            args: [id]
+            sql: 'UPDATE Notas SET category = ? WHERE owner_id = ? AND lower(category) = lower(?)',
+            args: ['', req.workspaceId, folder.name]
+        });
+        await db.execute({
+            sql: 'DELETE FROM Categorias WHERE id = ? AND owner_id = ?',
+            args: [id, req.workspaceId]
         });
         res.json({ success: true, message: 'Carpeta eliminada' });
     } catch (error) {
@@ -262,44 +273,27 @@ app.delete('/api/categories/:id', async (req, res) => {
     }
 });
 
-async function initializePermanentFolders() {
-    await db.execute(
-        'CREATE TABLE IF NOT EXISTS AppMigrations (' +
-        'name TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)'
-    );
-    const migrationName = 'seed-permanent-folders-v2';
-    const migration = await db.execute({
-        sql: 'SELECT name FROM AppMigrations WHERE name = ?',
-        args: [migrationName]
-    });
-    if (migration.rows.length > 0) return;
-
-    const existingResult = await db.execute('SELECT name FROM Categorias');
-    const existingNames = new Set(existingResult.rows.map(row => String(row.name || '').trim().toLowerCase()));
-    const folders = [
-        { name: 'Proyectos', color: '#FCF5BF', icon: '📁', aliases: ['proyectos', 'projects'] },
-        { name: 'Negocios', color: '#FF99C8', icon: '💼', aliases: ['negocios', 'business', 'trabajo'] },
-        { name: 'Personal', color: '#A8DEFA', icon: '⭐', aliases: ['personal', 'casa'] },
-        { name: 'General', color: '#D0F4E0', icon: '📝', aliases: ['general'] }
-    ];
-    for (const folder of folders) {
-        if (folder.aliases.some(alias => existingNames.has(alias))) continue;
-        await db.execute({
-            sql: 'INSERT INTO Categorias (name, color, icon) VALUES (?, ?, ?)',
-            args: [folder.name, folder.color, folder.icon]
-        });
+async function initializeWorkspaceSchema() {
+    for (const table of ['Notas', 'Categorias']) {
+        const columns = await db.execute(`PRAGMA table_info(${table})`);
+        if (!columns.rows.some(column => column.name === 'owner_id')) {
+            await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
+        }
     }
-    await db.execute({
-        sql: 'INSERT OR IGNORE INTO AppMigrations (name) VALUES (?)',
-        args: [migrationName]
-    });
 }
 
 const PORT = 5080;
-initializePermanentFolders()
-    .catch(error => console.error('No se pudieron inicializar las carpetas permanentes en Turso:', error))
-    .finally(() => {
-        app.listen(PORT, () => {
+const workspaceSchemaReady = initializeWorkspaceSchema();
+
+if (require.main === module) {
+    workspaceSchemaReady
+        .then(() => app.listen(PORT, () => {
             console.log('SERVIDOR EN http://localhost:' + PORT);
+        }))
+        .catch(error => {
+            console.error('No se pudo preparar el aislamiento de espacios de trabajo:', error);
+            process.exitCode = 1;
         });
-    });
+}
+
+module.exports = app;

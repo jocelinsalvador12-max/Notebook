@@ -1,0 +1,85 @@
+// Esquema de Notebook, complementado con las tablas/columnas visibles en la
+// captura del diagrama proporcionada por la usuaria.
+
+Table Notas {
+  id integer [pk, increment]
+  title varchar(100) [not null]
+  content text [not null]
+  color text [not null, default: 'card-peach']
+  category text [not null, default: 'General']
+  is_favorite integer [not null, default: 0]
+  in_trash integer [not null, default: 0]
+  assigned_at text
+  due_at text
+  owner_id text
+}
+
+Table Categorias {
+  name text [not null]
+  color text
+  icon text
+  id integer [pk, increment]
+  owner_id text
+}
+
+Table Usuarios {
+  username text [not null]
+  email text [not null]
+  password_hash text [not null]
+  created_at datetime
+  id integer [pk, increment]
+}
+
+Table Subtareas {
+  nota_id integer [not null]
+  title text [not null]
+  is_completed integer [not null, default: 0]
+  id integer [pk, increment]
+}
+
+Table Recordatorios {
+  nota_id integer [not null]
+  reminder_at datetime [not null]
+  is_sent integer [not null, default: 0]
+  id integer [pk, increment]
+}
+
+Table Favoritos {
+  color text
+  content text
+  title text
+  id integer [pk, increment]
+}
+
+Table Papelera {
+  color text
+  content text
+  title text
+  id integer [pk, increment]
+}
+
+Table AppMigrations {
+  name text [pk, not null]
+  applied_at text [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+// Tablas internas de SQLite visibles en la captura; no pertenecen a la app.
+Table sqlite_sequence {
+  name text
+  seq integer
+}
+
+Table sqlite_master {
+  type text
+  name text
+  tbl_name text
+  rootpage integer
+  sql text
+}
+
+// Relaciones del dominio Notebook (Favoritos y Papelera reutilizan el id de la nota).
+Ref: Notas.category > Categorias.name
+Ref: Subtareas.nota_id > Notas.id
+Ref: Recordatorios.nota_id > Notas.id
+Ref: Favoritos.id - Notas.id
+Ref: Papelera.id - Notas.id

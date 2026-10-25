@@ -1,29 +1,22 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Apunta al servidor Node.js en el puerto 5080 (o proxy)
-    const API_URL = 'http://localhost:5080/api';
+    const API_URL = '/api';
+    const WORKSPACE_KEY = 'notebookWorkspaceId';
+    let workspaceId = localStorage.getItem(WORKSPACE_KEY);
+    if (!workspaceId) {
+        workspaceId = crypto.randomUUID();
+        localStorage.setItem(WORKSPACE_KEY, workspaceId);
+    }
     const savedUsername = localStorage.getItem('notebookUsername')?.trim();
     document.querySelectorAll('.user-greeting').forEach(greeting => {
         greeting.textContent = `¡Hola, ${savedUsername || 'Peter'}!`;
     });
-    const permanentFolderNames = new Set([
-        'proyectos', 'projects',
-        'negocios', 'business', 'trabajo',
-        'personal', 'casa',
-        'general'
-    ]);
-    const permanentFolderDefaults = [
-        { name: 'Proyectos', color: '#FCF5BF', icon: '📁', aliases: ['proyectos', 'projects'] },
-        { name: 'Negocios', color: '#FF99C8', icon: '💼', aliases: ['negocios', 'business', 'trabajo'] },
-        { name: 'Personal', color: '#A8DEFA', icon: '⭐', aliases: ['personal', 'casa'] },
-        { name: 'General', color: '#D0F4E0', icon: '📝', aliases: ['general'] }
-    ];
     const folderOrder = [
         ['proyectos', 'projects'],
         ['negocios', 'business', 'trabajo'],
         ['personal', 'casa'],
         ['general']
     ];
-    const isPermanentFolder = name => permanentFolderNames.has(String(name || '').trim().toLowerCase());
     const sortFolders = folders => [...folders].sort((a, b) => {
         const aName = String(a.name || '').trim().toLowerCase();
         const bName = String(b.name || '').trim().toLowerCase();
@@ -31,23 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const bIndex = folderOrder.findIndex(group => group.includes(bName));
         return (aIndex < 0 ? folderOrder.length : aIndex) - (bIndex < 0 ? folderOrder.length : bIndex);
     });
-    const withPermanentFolders = folders => {
-        const available = Array.isArray(folders) ? [...folders] : [];
-        const existingNames = new Set(available.map(folder => String(folder.name || '').trim().toLowerCase()));
-        permanentFolderDefaults.forEach(folder => {
-            if (!folder.aliases.some(alias => existingNames.has(alias))) {
-                available.push({ ...folder, id: null });
-            }
-        });
-        const displayFolders = available.map(folder => {
-            const normalizedName = String(folder.name || '').trim().toLowerCase();
-            const permanentFolder = permanentFolderDefaults.find(item => item.aliases.includes(normalizedName));
-            return permanentFolder
-                ? { ...permanentFolder, ...folder, name: permanentFolder.name }
-                : folder;
-        });
-        return sortFolders(displayFolders);
-    };
+    const withPermanentFolders = folders => sortFolders(Array.isArray(folders) ? folders : []);
 
     // Detección automática de la vista según la URL
     let currentView = 'notes';
@@ -126,6 +103,79 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterTabs = document.querySelectorAll('.filter-tab');
     const categoryTagItems = document.querySelectorAll('.category-tag-item');
     const filterFeedback = document.getElementById('filter-feedback');
+    const notificationButton = document.querySelector('.btn-notification');
+
+    function formatTimeUntilDue(value) {
+        const due = new Date(value);
+        const diff = due.getTime() - Date.now();
+        if (Number.isNaN(due.getTime())) return 'Fecha de entrega por confirmar';
+        if (diff < 0) return `Vencida ${formatDateTime(value)}`;
+        const minutes = Math.ceil(diff / 60000);
+        if (minutes < 60) return `Se vencerá en ${minutes} min`;
+        const hours = Math.ceil(minutes / 60);
+        if (hours < 24) return `Se vencerá en ${hours} h`;
+        const days = Math.floor(hours / 24);
+        if (days < 7) return `Se vencerá en ${days} día${days === 1 ? '' : 's'}`;
+        return `Se vencerá el ${formatDateTime(value)}`;
+    }
+
+    function renderNotifications(notes) {
+        if (!notificationButton) return;
+        let panel = document.getElementById('notifications-panel');
+        if (!panel) {
+            panel = document.createElement('section');
+            panel.id = 'notifications-panel';
+            panel.className = 'notifications-panel';
+            panel.setAttribute('aria-label', 'Notificaciones de tareas');
+            panel.hidden = true;
+            notificationButton.insertAdjacentElement('afterend', panel);
+        }
+
+        const now = Date.now();
+        const upcoming = (Array.isArray(notes) ? notes : [])
+            .filter(note => note.due_at && !note.in_trash)
+            .map(note => ({ ...note, dueTime: new Date(note.due_at).getTime() }))
+            .filter(note => Number.isFinite(note.dueTime) && note.dueTime <= now + 7 * 24 * 60 * 60 * 1000)
+            .sort((a, b) => a.dueTime - b.dueTime);
+
+        const dot = notificationButton.querySelector('.notif-dot');
+        if (dot) dot.hidden = upcoming.length === 0;
+        notificationButton.setAttribute('aria-expanded', String(!panel.hidden));
+        panel.innerHTML = upcoming.length
+            ? `<h2>Notificaciones</h2><ul>${upcoming.map(note => {
+                const overdue = note.dueTime < now;
+                return `<li class="notification-item ${overdue ? 'is-overdue' : ''}">
+                    <strong>${escapeHTML(note.title || 'Sin título')}</strong>
+                    <span>${escapeHTML(formatTimeUntilDue(note.due_at))}</span>
+                </li>`;
+            }).join('')}</ul>`
+            : '<h2>Notificaciones</h2><p class="notifications-empty">No hay tareas próximas a vencer.</p>';
+    }
+
+    if (notificationButton) {
+        notificationButton.setAttribute('aria-haspopup', 'true');
+        notificationButton.setAttribute('aria-expanded', 'false');
+        notificationButton.addEventListener('click', () => {
+            const panel = document.getElementById('notifications-panel');
+            if (!panel) return;
+            panel.hidden = !panel.hidden;
+            notificationButton.setAttribute('aria-expanded', String(!panel.hidden));
+            if (!panel.hidden) renderNotifications(window.__notebookNotifications || []);
+        });
+        document.addEventListener('click', event => {
+            const panel = document.getElementById('notifications-panel');
+            if (panel && !notificationButton.contains(event.target) && !panel.contains(event.target)) {
+                panel.hidden = true;
+                notificationButton.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    async function refreshNotifications() {
+        const notes = await fetchAPI('/notes');
+        window.__notebookNotifications = Array.isArray(notes) ? notes : [];
+        renderNotifications(window.__notebookNotifications);
+    }
 
     const modal = document.getElementById('editor-modal');
     const btnSaveNote = document.getElementById('btn-save-note');
@@ -148,7 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const options = {
                 method,
-                headers: { 'Content-Type': 'application/json' }
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Workspace-Id': workspaceId
+                }
             };
             if (body) options.body = JSON.stringify(body);
 
@@ -179,7 +232,34 @@ document.addEventListener('DOMContentLoaded', () => {
             link.href = './app.html?category=' + encodeURIComponent(folder.name);
             link.dataset.category = folder.name;
             link.title = 'Suelta una nota aquí para moverla a esta carpeta';
-            link.innerHTML = '<span class="category-dot" style="background-color:' + escapeHTML(folder.color || '#A855F7') + '"></span><span>' + escapeHTML(folder.name) + '</span>';
+            link.innerHTML = '<span class="category-dot" style="background-color:' + escapeHTML(folder.color || '#A855F7') + '"></span><span class="sidebar-folder-name">' + escapeHTML(folder.name) + '</span>';
+
+            if (folder.id !== undefined && folder.id !== null) {
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.className = 'sidebar-folder-delete';
+                deleteButton.title = `Eliminar carpeta ${folder.name}`;
+                deleteButton.setAttribute('aria-label', `Eliminar carpeta ${folder.name}`);
+                deleteButton.textContent = '×';
+                deleteButton.addEventListener('click', async event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!confirm(`¿Eliminar la carpeta "${folder.name}"?`)) return;
+                    const result = await fetchAPI('/categories/' + encodeURIComponent(folder.id), 'DELETE');
+                    if (!result) {
+                        alert('No se pudo eliminar la carpeta.');
+                        return;
+                    }
+                    await renderSidebarFolders();
+                    if (currentView === 'categories') await renderCategories();
+                    else if (currentCategoryFilter.toLowerCase() === String(folder.name).toLowerCase()) {
+                        currentCategoryFilter = 'All';
+                        window.history.replaceState({}, '', window.location.pathname);
+                        await loadCurrentView();
+                    }
+                });
+                link.appendChild(deleteButton);
+            }
             link.addEventListener('click', event => {
                 const isNotesPage = window.location.pathname.includes('app.html')
                     || window.location.pathname === '/'
@@ -230,6 +310,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const data = await fetchAPI(endpoint);
         allNotesData = Array.isArray(data) ? data : [];
+        if (currentView === 'notes') {
+            window.__notebookNotifications = allNotesData;
+            renderNotifications(allNotesData);
+        }
 
         // Leer parámetro categoría desde la URL si existe
         const urlParams = new URLSearchParams(window.location.search);
@@ -428,7 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const categoriesData = withPermanentFolders((Array.isArray(dbCategories) ? dbCategories : [])
             .filter(c => c && c.name)
             .map(c => ({
-                id: isPermanentFolder(c.name) ? null : c.id,
+                id: c.id,
                 name: c.name,
                 color: c.color || '#FCF5BF',
                 icon: c.icon || '📁'
@@ -688,16 +772,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (Array.isArray(cats)) {
                         const currentVal = selectCategory.value;
                         selectCategory.innerHTML = '';
-                        const categoryOptions = [
-                            { name: 'Projects', label: 'Proyectos' },
-                            { name: 'Business', label: 'Negocios' },
-                            { name: 'Personal', label: 'Personal' },
-                            { name: 'General', label: 'General' },
-                            ...cats.filter(c => c && c.name && !permanentFolderNames.has(c.name.trim().toLowerCase()))
-                                .filter(c => !['business', 'negocios', 'trabajo', 'personal', 'casa', 'general']
-                                    .includes(c.name.trim().toLowerCase()))
-                                .map(c => ({ name: c.name, label: c.name }))
-                        ];
+                        const categoryOptions = [{ name: '', label: 'Sin carpeta' }, ...(Array.isArray(cats) ? cats : [])
+                            .filter(c => c && c.name)
+                            .map(c => ({ name: c.name, label: c.name }))];
                         categoryOptions.forEach(c => {
                             const opt = document.createElement('option');
                             opt.value = c.name;
@@ -751,7 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = inputTitle ? inputTitle.value.trim() : '';
             const content = inputContent ? inputContent.value.trim() : '';
             const color = inputColor ? inputColor.value : 'card-lavender';
-            const category = selectCategory ? selectCategory.value : 'General';
+            const category = selectCategory ? selectCategory.value : '';
             const assigned_at = inputAssigned && inputAssigned.value ? inputAssigned.value : null;
             const due_at = inputDue && inputDue.value ? inputDue.value : null;
 
@@ -781,4 +858,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Carga inicial
     renderSidebarFolders();
     loadCurrentView();
+    if (currentView !== 'notes') refreshNotifications();
+    window.setInterval(refreshNotifications, 60 * 1000);
 });
