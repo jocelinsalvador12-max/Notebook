@@ -777,6 +777,35 @@ body {
     animation: modalSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+#editor-modal .editor-content {
+    max-width: 580px;
+}
+
+#editor-modal .class-note-editor {
+    width: min(780px, calc(100vw - 48px));
+    max-width: 780px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    padding: 34px;
+}
+
+#editor-modal .class-note-editor textarea {
+    min-height: 220px;
+}
+
+@media (max-width: 640px) {
+    #editor-modal .class-note-editor {
+        width: 100%;
+        max-height: calc(100vh - 32px);
+        padding: 22px;
+    }
+
+    #editor-modal .class-note-editor .form-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
 @keyframes modalSlide {
     from {
         opacity: 0;
@@ -835,7 +864,7 @@ body {
 }
 
 .editor-content textarea {
-    height: 130px;
+    height: 155px;
     resize: vertical;
 }
 

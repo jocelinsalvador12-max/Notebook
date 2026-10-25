@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectCategory = document.getElementById('note-category');
     const inputAssigned = document.getElementById('note-assigned');
     const inputDue = document.getElementById('note-due');
-    const colorSwatches = document.querySelectorAll('.swatch-btn');
+    const colorSwatches = document.querySelectorAll('#color-swatches .swatch-btn');
 
     // Botones de acción / apertura modal
     const btnAddNote = document.getElementById('btn-add-note') || document.querySelector('.card-new');
@@ -600,7 +600,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 addNoteButton.setAttribute('aria-label', `Añadir apunte a ${cat.name}`);
                 addNoteButton.addEventListener('click', event => {
                     event.stopPropagation();
-                    window.location.href = `./app.html?category=${encodeURIComponent(cat.name)}&newNote=1`;
+                    currentCategoryFilter = cat.name;
+                    openModal();
                 });
                 card.appendChild(addNoteButton);
             }
@@ -850,9 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnAddNote) btnAddNote.addEventListener('click', openModal);
     if (btnSidebarAddNew) btnSidebarAddNew.addEventListener('click', openModal);
-    document.getElementById('btn-quick-class-note')?.addEventListener('click', () => {
-        window.location.href = './app.html?newNote=1';
-    });
+    document.getElementById('btn-quick-class-note')?.addEventListener('click', openModal);
     if (btnCancel) btnCancel.addEventListener('click', closeModal);
     if (modalCloseIcon) modalCloseIcon.addEventListener('click', closeModal);
 

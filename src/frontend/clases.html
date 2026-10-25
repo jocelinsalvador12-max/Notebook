@@ -101,9 +101,6 @@
                 <h2 style="font-size:1.4rem;font-weight:700;color:var(--text-title);margin:0; display:flex; align-items:center; gap:10px;">
                     📚 Mis clases
                 </h2>
-                <button id="btn-add-folder" class="btn-save" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; border: none; background: #7C3AED; color: white; box-shadow: 0 4px 14px rgba(124,58,237,0.3);">
-                    <span>＋ Nueva clase</span>
-                </button>
                 <button id="btn-quick-class-note" class="btn-quick-class-note" type="button">✎ Nuevo apunte</button>
             </section>
 
@@ -111,6 +108,49 @@
 
             <div class="categories-grid"><!-- Se llena automáticamente con JS --></div>
         </main>
+    </div>
+
+    <!-- Editor para crear un apunte sin salir de Clases -->
+    <div id="editor-modal" class="editor-modal">
+        <div class="editor-content class-note-editor">
+            <div class="modal-header">
+                <h2>Nuevo apunte</h2>
+                <button id="modal-close-icon" class="modal-close-btn" type="button">&times;</button>
+            </div>
+            <input type="text" id="note-title" placeholder="Título del apunte..." required />
+            <textarea id="note-content" placeholder="Escribe aquí lo aprendido en clase..." required></textarea>
+            <div class="form-row">
+                <div class="color-picker-container">
+                    <label>Color pastel:</label>
+                    <div class="color-swatches" id="color-swatches">
+                        <button type="button" class="swatch-btn selected" data-color="card-lavender" style="background-color: #E8C0FC;" title="Lavanda"></button>
+                        <button type="button" class="swatch-btn" data-color="card-blue" style="background-color: #A8DEFA;" title="Azul"></button>
+                        <button type="button" class="swatch-btn" data-color="card-mint" style="background-color: #D0F4E0;" title="Menta"></button>
+                        <button type="button" class="swatch-btn" data-color="card-yellow" style="background-color: #FCF5BF;" title="Amarillo"></button>
+                        <button type="button" class="swatch-btn" data-color="card-pink" style="background-color: #FF99C8;" title="Rosa"></button>
+                    </div>
+                    <input type="hidden" id="note-color" value="card-lavender" />
+                </div>
+                <div class="category-select-container">
+                    <label for="note-category">Clase:</label>
+                    <select id="note-category" class="form-control"></select>
+                </div>
+            </div>
+            <div class="form-row dates-row">
+                <div class="date-input-container">
+                    <label for="note-assigned">📌 Se asignó:</label>
+                    <input type="datetime-local" id="note-assigned" class="form-control" />
+                </div>
+                <div class="date-input-container">
+                    <label for="note-due">⏰ Fecha de entrega:</label>
+                    <input type="datetime-local" id="note-due" class="form-control" />
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-cancel" class="btn-cancel" type="button">Cancelar</button>
+                <button id="btn-save-note" class="btn-save" type="button">Guardar apunte</button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal para crear clase -->
