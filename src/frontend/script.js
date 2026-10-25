@@ -2,11 +2,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Apunta al servidor Node.js en el puerto 5080 (o proxy)
     const API_URL = '/api';
     const WORKSPACE_KEY = 'notebookWorkspaceId';
+    const NOTE_CREATED_AT_KEY = 'notebookNoteCreatedAt:';
     let workspaceId = localStorage.getItem(WORKSPACE_KEY);
     if (!workspaceId) {
         workspaceId = crypto.randomUUID();
         localStorage.setItem(WORKSPACE_KEY, workspaceId);
     }
+    const noteCreatedAtKey = NOTE_CREATED_AT_KEY + workspaceId;
+    const getLocalCreatedAt = () => {
+        try { return JSON.parse(localStorage.getItem(noteCreatedAtKey) || '{}'); }
+        catch { return {}; }
+    };
+    const saveLocalCreatedAt = (noteId, createdAt) => {
+        if (noteId === undefined || noteId === null) return;
+        try {
+            const dates = getLocalCreatedAt();
+            dates[String(noteId)] = createdAt;
+            localStorage.setItem(noteCreatedAtKey, JSON.stringify(dates));
+        } catch { /* La nota se guarda aunque el almacenamiento local esté lleno. */ }
+    };
     const savedUsername = localStorage.getItem('notebookUsername')?.trim();
     document.querySelectorAll('.user-greeting').forEach(greeting => {
         greeting.textContent = `¡Hola, ${savedUsername || 'Peter'}!`;
@@ -549,13 +563,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     const date = new Date(String(value).replace(' ', 'T'));
                     return Number.isNaN(date.getTime()) ? null : date;
                 };
+                const localCreatedAt = getLocalCreatedAt();
+                const createdAtForNote = note => parseCreatedAt(note.created_at)
+                    || parseCreatedAt(localCreatedAt[String(note.id)]);
                 const startOfToday = new Date();
                 startOfToday.setHours(0, 0, 0, 0);
                 const weekDays = Array.from({ length: 7 }, (_, index) => {
                     const day = new Date(startOfToday);
                     day.setDate(day.getDate() - (6 - index));
                     const count = notesList.filter(note => {
-                        const created = parseCreatedAt(note.created_at);
+                        const created = createdAtForNote(note);
                         return created && created.getFullYear() === day.getFullYear()
                             && created.getMonth() === day.getMonth() && created.getDate() === day.getDate();
                     }).length;
@@ -566,9 +583,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const weekBars = weekDays.map(item => {
                     const height = item.count ? Math.max(12, (item.count / weekPeak) * 100) : 4;
                     const dayLabel = item.day.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '');
-                    return `<div class="activity-day" title="${dayLabel}: ${item.count} ${item.count === 1 ? 'apunte' : 'apuntes'}"><span class="activity-day-count">${item.count || ''}</span><div class="activity-day-track"><i style="height:${height}%"></i></div><small>${dayLabel}</small></div>`;
+                    const dateLabel = item.day.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }).replace('.', '');
+                    return `<div class="activity-day" title="${dayLabel} ${dateLabel}: ${item.count} ${item.count === 1 ? 'apunte' : 'apuntes'}"><span class="activity-day-count">${item.count}</span><div class="activity-day-track"><i style="height:${height}%"></i></div><small>${dayLabel}</small><small class="activity-day-date">${dateLabel}</small></div>`;
                 }).join('');
-                const recentNotes = notesList.map(note => ({ ...note, parsedCreatedAt: parseCreatedAt(note.created_at) }))
+                const recentNotes = notesList.map(note => ({ ...note, parsedCreatedAt: createdAtForNote(note) }))
                     .sort((a, b) => (b.parsedCreatedAt?.getTime() || Number(b.id) || 0) - (a.parsedCreatedAt?.getTime() || Number(a.id) || 0))
                     .slice(0, 4);
                 const recentList = recentNotes.length ? recentNotes.map(note => `
@@ -602,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                     <div class="activity-details">
-                        <div class="activity-weekly"><div class="folder-chart-title"><span>Tu ritmo esta semana</span><span>${weekTotal} ${weekTotal === 1 ? 'apunte creado' : 'apuntes creados'}</span></div><div class="activity-week-bars">${weekBars}</div></div>
+                        <div class="activity-weekly"><div class="folder-chart-title"><span>Notas creadas por día</span><span>${weekTotal} en los últimos 7 días</span></div><div class="activity-week-bars">${weekBars}</div></div>
                         <div class="activity-recent"><div class="folder-chart-title"><span>Apuntes recientes</span><span>Últimos 4</span></div><div class="activity-recent-list">${recentList}</div></div>
                     </div>`;
             }
@@ -969,6 +987,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const payload = { title, content, color, category, assigned_at, due_at };
+            const createdAt = new Date().toISOString();
             btnSaveNote.disabled = true;
             btnSaveNote.textContent = 'Guardando...';
 
@@ -978,6 +997,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSaveNote.textContent = 'Guardar Nota';
 
             if (res) {
+                saveLocalCreatedAt(res.id, createdAt);
                 closeModal();
                 loadCurrentView();
             } else {
