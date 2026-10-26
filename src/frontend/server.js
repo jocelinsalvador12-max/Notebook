@@ -7,6 +7,47 @@ const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
+// ──────────────────────────────────────────────
+// Conexión a Turso (segura: no lanza excepciones
+// a nivel de módulo para que Vercel pueda cargarlo)
+// ──────────────────────────────────────────────
+const db = (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN)
+    ? createClient({
+        url: process.env.TURSO_DATABASE_URL,
+        authToken: process.env.TURSO_AUTH_TOKEN
+    })
+    : null;
+
+// Inicializar esquema (agregar columnas si no existen)
+async function initializeWorkspaceSchema() {
+    if (!db) return; // nada que hacer si no hay DB
+    for (const table of ['Notas', 'Categorias']) {
+        const columns = await db.execute(`PRAGMA table_info(${table})`);
+        if (!columns.rows.some(column => column.name === 'owner_id')) {
+            await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
+        }
+    }
+    const noteColumns = await db.execute('PRAGMA table_info(Notas)');
+    if (!noteColumns.rows.some(column => column.name === 'created_at')) {
+        await db.execute('ALTER TABLE Notas ADD COLUMN created_at TEXT');
+    }
+}
+
+const workspaceSchemaReady = initializeWorkspaceSchema();
+
+// ──────────────────────────────────────────────
+// Middleware 1: verificar que la DB está configurada
+// ──────────────────────────────────────────────
+app.use('/api', (req, res, next) => {
+    if (!db) {
+        return res.status(503).json({ error: 'Las variables TURSO_DATABASE_URL y TURSO_AUTH_TOKEN no están configuradas en el servidor.' });
+    }
+    next();
+});
+
+// ──────────────────────────────────────────────
+// Middleware 2: esperar esquema y validar workspace
+// ──────────────────────────────────────────────
 app.use('/api', async (req, res, next) => {
     try {
         await workspaceSchemaReady;
@@ -20,12 +61,6 @@ app.use('/api', async (req, res, next) => {
     }
     req.workspaceId = workspaceId;
     next();
-});
-
-// Conexión directa a Turso con credenciales
-const db = createClient({
-    url: process.env.TURSO_DATABASE_URL,
-    authToken: process.env.TURSO_AUTH_TOKEN
 });
 
 // GET: Obtener todas las notas activas (no en papelera)
@@ -209,6 +244,9 @@ app.post('/api/categories', async (req, res) => {
         res.status(201).json({ id: newId, name: name.trim(), color, icon, message: 'Carpeta creada exitosamente' });
     } catch (error) {
         console.error('Error al crear categoría:', error);
+        if (String(error.message || '').includes('UNIQUE constraint failed')) {
+            return res.status(409).json({ error: 'Ya existe una clase o carpeta con ese nombre. Prueba con otro nombre.' });
+        }
         res.status(500).json({ error: error.message });
     }
 });
@@ -274,22 +312,7 @@ app.delete('/api/categories/:id', async (req, res) => {
     }
 });
 
-async function initializeWorkspaceSchema() {
-    for (const table of ['Notas', 'Categorias']) {
-        const columns = await db.execute(`PRAGMA table_info(${table})`);
-        if (!columns.rows.some(column => column.name === 'owner_id')) {
-            await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
-        }
-    }
-
-    const noteColumns = await db.execute('PRAGMA table_info(Notas)');
-    if (!noteColumns.rows.some(column => column.name === 'created_at')) {
-        await db.execute('ALTER TABLE Notas ADD COLUMN created_at TEXT');
-    }
-}
-
 const PORT = 5080;
-const workspaceSchemaReady = initializeWorkspaceSchema();
 
 if (require.main === module) {
     workspaceSchemaReady
