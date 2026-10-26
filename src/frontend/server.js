@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@libsql/client');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -22,6 +23,14 @@ const db = (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN)
 // Inicializar esquema (agregar columnas si no existen)
 async function initializeWorkspaceSchema() {
     if (!db) return; // nada que hacer si no hay DB
+    await db.execute(`CREATE TABLE IF NOT EXISTS Usuarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        email TEXT NOT NULL,
+        password_hash TEXT NOT NULL
+    )`);
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS Usuarios_username_unique ON Usuarios (lower(username))');
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS Usuarios_email_unique ON Usuarios (lower(email))');
     for (const table of ['Notas', 'Categorias']) {
         const columns = await db.execute(`PRAGMA table_info(${table})`);
         if (!columns.rows.some(column => column.name === 'owner_id')) {
@@ -36,56 +45,122 @@ async function initializeWorkspaceSchema() {
 
 const workspaceSchemaReady = initializeWorkspaceSchema();
 
+const SESSION_COOKIE = 'notebook_session';
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+function sessionSecret() {
+    return process.env.SESSION_SECRET || '';
+}
+function signSession(user) {
+    const payload = Buffer.from(JSON.stringify({ id: user.id, exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS })).toString('base64url');
+    const signature = crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
+    return `${payload}.${signature}`;
+}
+function readSession(req) {
+    const cookieHeader = req.headers.cookie || '';
+    const token = cookieHeader.split(';').map(value => value.trim()).find(value => value.startsWith(`${SESSION_COOKIE}=`))?.slice(SESSION_COOKIE.length + 1);
+    if (!token || !sessionSecret()) return null;
+    const [payload, signature] = token.split('.');
+    if (!payload || !signature) return null;
+    const expected = crypto.createHmac('sha256', sessionSecret()).update(payload).digest();
+    let supplied;
+    try { supplied = Buffer.from(signature, 'base64url'); } catch { return null; }
+    if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return null;
+    try {
+        const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+        return Number.isInteger(session.id) && session.exp > Math.floor(Date.now() / 1000) ? session : null;
+    } catch { return null; }
+}
+function setSessionCookie(req, res, value, maxAge = SESSION_MAX_AGE_SECONDS) {
+    const secure = req.secure || req.get('x-forwarded-proto') === 'https';
+    res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${value}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`);
+}
+
 // ==========================================
 // RUTAS DE AUTENTICACIÓN (Registro y Login)
 // ==========================================
 
 app.post('/api/register', async (req, res) => {
-    const { username, email, password } = req.body;
+    const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    if (!username || username.length > 50 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8 || password.length > 72) {
+        return res.status(400).json({ success: false, error: 'Ingresa un usuario, correo válido y una contraseña de 8 a 72 caracteres.' });
+    }
+    if (!db) return res.status(503).json({ success: false, error: 'La base de datos no está configurada.' });
+    if (!sessionSecret()) return res.status(503).json({ success: false, error: 'El servidor no tiene SESSION_SECRET configurado.' });
     try {
-        const saltRounds = 10;
-        const password_hash = await bcrypt.hash(password, saltRounds);
+        await workspaceSchemaReady;
+        const password_hash = await bcrypt.hash(password, 12);
 
-        await db.execute({
-            sql: "INSERT INTO Usuarios (username, email, password_hash) VALUES (?, ?, ?)",
+        const result = await db.execute({
+            sql: 'INSERT INTO Usuarios (username, email, password_hash) VALUES (?, ?, ?)',
             args: [username, email, password_hash]
         });
-
-        res.status(201).json({ success: true, message: "¡Usuario registrado con éxito!" });
+        const user = { id: Number(result.lastInsertRowid), username, email };
+        setSessionCookie(req, res, signSession(user));
+        res.status(201).json({ success: true, message: '¡Usuario registrado con éxito!', user });
     } catch (error) {
         console.error("Error al registrar:", error);
-        res.status(500).json({ success: false, error: "El usuario o correo ya existe, o hubo un error en el servidor." });
+        if (String(error.message || '').includes('UNIQUE constraint failed')) {
+            return res.status(409).json({ success: false, error: 'Ese usuario o correo ya está registrado.' });
+        }
+        res.status(500).json({ success: false, error: 'No se pudo completar el registro.' });
     }
 });
 
 app.post('/api/login', async (req, res) => {
-    const { username, password } = req.body;
+    const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    if (!username || !password) return res.status(400).json({ success: false, error: 'Ingresa tu usuario y contraseña.' });
+    if (!db) return res.status(503).json({ success: false, error: 'La base de datos no está configurada.' });
+    if (!sessionSecret()) return res.status(503).json({ success: false, error: 'El servidor no tiene SESSION_SECRET configurado.' });
     try {
+        await workspaceSchemaReady;
         const result = await db.execute({
-            sql: "SELECT * FROM Usuarios WHERE username = ?",
+            sql: 'SELECT id, username, email, password_hash FROM Usuarios WHERE lower(username) = lower(?) LIMIT 1',
             args: [username]
         });
 
         if (result.rows.length === 0) {
-            return res.status(401).json({ success: false, message: "Usuario no encontrado." });
+            return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos.' });
         }
 
         const user = result.rows[0];
         const match = await bcrypt.compare(password, user.password_hash);
 
         if (!match) {
-            return res.status(401).json({ success: false, message: "Contraseña incorrecta." });
+            return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos.' });
         }
 
+        setSessionCookie(req, res, signSession(user));
         res.status(200).json({
             success: true,
-            message: "Inicio de sesión exitoso",
+            message: 'Inicio de sesión exitoso',
             user: { id: user.id, username: user.username, email: user.email }
         });
     } catch (error) {
         console.error("Error al iniciar sesión:", error);
         res.status(500).json({ success: false, error: "Error en el servidor." });
     }
+});
+
+app.get('/api/session', async (req, res) => {
+    if (!db || !sessionSecret()) return res.status(503).json({ success: false, error: 'La autenticación no está configurada.' });
+    const session = readSession(req);
+    if (!session) return res.status(401).json({ success: false, error: 'La sesión no es válida.' });
+    try {
+        const result = await db.execute({ sql: 'SELECT id, username, email FROM Usuarios WHERE id = ? LIMIT 1', args: [session.id] });
+        if (!result.rows[0]) return res.status(401).json({ success: false, error: 'La sesión no es válida.' });
+        res.json({ success: true, user: result.rows[0] });
+    } catch (error) {
+        console.error('Error al consultar la sesión:', error);
+        res.status(500).json({ success: false, error: 'No se pudo consultar la sesión.' });
+    }
+});
+
+app.post('/api/logout', (req, res) => {
+    setSessionCookie(req, res, '', 0);
+    res.json({ success: true });
 });
 
 // ──────────────────────────────────────────────

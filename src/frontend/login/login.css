@@ -95,6 +95,9 @@ body {
 
 .login-card input::placeholder { color: #aaa5b2; }
 .login-card input:focus { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168, 85, 247, .13); }
+.form-message { min-height: 1.2em; margin: -7px 0 12px; color: #655b70; font-size: .78rem; }
+.form-message.is-error { color: #b42318; }
+.login-button:disabled { cursor: wait; opacity: .7; transform: none; }
 
 .forgot-link {
     display: block;
