@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@libsql/client');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const app = express();
