@@ -4,8 +4,8 @@
   "type": "commonjs",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "server": "node src/frontend/server.js"
+    "build": "npx vite build",
+    "start": "node src/frontend/js/server.js"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
