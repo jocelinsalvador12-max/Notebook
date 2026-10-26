@@ -4,7 +4,7 @@
   "type": "commonjs",
   "scripts": {
     "dev": "vite",
-    "build": "npx vite build",
+    "build": "node node_modules/vite/bin/vite.js build",
     "start": "node src/frontend/js/server.js"
   },
   "dependencies": {
