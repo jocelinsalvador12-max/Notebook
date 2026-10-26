@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@libsql/client');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
@@ -34,6 +35,58 @@ async function initializeWorkspaceSchema() {
 }
 
 const workspaceSchemaReady = initializeWorkspaceSchema();
+
+// ==========================================
+// RUTAS DE AUTENTICACIÓN (Registro y Login)
+// ==========================================
+
+app.post('/api/register', async (req, res) => {
+    const { username, email, password } = req.body;
+    try {
+        const saltRounds = 10;
+        const password_hash = await bcrypt.hash(password, saltRounds);
+
+        await db.execute({
+            sql: "INSERT INTO Usuarios (username, email, password_hash) VALUES (?, ?, ?)",
+            args: [username, email, password_hash]
+        });
+
+        res.status(201).json({ success: true, message: "¡Usuario registrado con éxito!" });
+    } catch (error) {
+        console.error("Error al registrar:", error);
+        res.status(500).json({ success: false, error: "El usuario o correo ya existe, o hubo un error en el servidor." });
+    }
+});
+
+app.post('/api/login', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const result = await db.execute({
+            sql: "SELECT * FROM Usuarios WHERE username = ?",
+            args: [username]
+        });
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({ success: false, message: "Usuario no encontrado." });
+        }
+
+        const user = result.rows[0];
+        const match = await bcrypt.compare(password, user.password_hash);
+
+        if (!match) {
+            return res.status(401).json({ success: false, message: "Contraseña incorrecta." });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Inicio de sesión exitoso",
+            user: { id: user.id, username: user.username, email: user.email }
+        });
+    } catch (error) {
+        console.error("Error al iniciar sesión:", error);
+        res.status(500).json({ success: false, error: "Error en el servidor." });
+    }
+});
 
 // ──────────────────────────────────────────────
 // Middleware 1: verificar que la DB está configurada
