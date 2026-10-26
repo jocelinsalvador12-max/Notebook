@@ -209,8 +209,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSidebarAddNew = document.getElementById('btn-sidebar-add-new');
 
     // Petición genérica a la API de Turso DB
+    let lastAPIError = '';
     async function fetchAPI(endpoint, method = 'GET', body = null) {
         try {
+            lastAPIError = '';
             const options = {
                 method,
                 headers: {
@@ -222,11 +224,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const response = await fetch(`${API_URL}${endpoint}`, options);
             if (!response.ok) {
-                console.error(`Error HTTP ${response.status} en ${endpoint}`);
+                const errorBody = await response.json().catch(() => ({}));
+                lastAPIError = errorBody.error || `Error del servidor (${response.status}).`;
+                console.error(`Error HTTP ${response.status} en ${endpoint}:`, lastAPIError);
                 return null;
             }
             return await response.json();
         } catch (err) {
+            lastAPIError = 'No se pudo conectar con el servidor. Verifica que esté iniciado e inténtalo de nuevo.';
             console.error(`Error de conexión con la API (${endpoint}):`, err);
             return null;
         }
@@ -806,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     closeFModal();
                     renderCategories();
                 } else {
-                    alert(classView ? 'No se pudo crear la clase.' : 'Error al crear la carpeta.');
+                    alert(lastAPIError || (classView ? 'No se pudo crear la clase.' : 'Error al crear la carpeta.'));
                 }
             };
         }
