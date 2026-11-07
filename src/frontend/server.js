@@ -20,6 +20,7 @@ const db = (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN)
     })
     : null;
 let subtasksNoteIdColumn = 'nota_id';
+let remindersNoteIdColumn = 'nota_id';
 
 // Inicializar esquema (agregar columnas si no existen)
 async function initializeWorkspaceSchema() {
@@ -92,6 +93,16 @@ async function initializeWorkspaceSchema() {
         // entre versiones del esquema. Agregar la columna sin tocar sus datos.
         await db.execute('ALTER TABLE Subtareas ADD COLUMN nota_id INTEGER');
         subtasksNoteIdColumn = 'nota_id';
+    }
+    const reminderColumns = await db.execute('PRAGMA table_info(Recordatorios)');
+    const reminderColumnNames = reminderColumns.rows.map(column => column.name);
+    if (reminderColumnNames.includes('nota_id')) {
+        remindersNoteIdColumn = 'nota_id';
+    } else if (reminderColumnNames.includes('note_id')) {
+        remindersNoteIdColumn = 'note_id';
+    } else {
+        await db.execute('ALTER TABLE Recordatorios ADD COLUMN nota_id INTEGER');
+        remindersNoteIdColumn = 'nota_id';
     }
     const noteColumns = await db.execute('PRAGMA table_info(Notas)');
     if (!noteColumns.rows.some(column => column.name === 'created_at')) {
@@ -296,7 +307,7 @@ app.post('/api/notes', async (req, res) => {
         }
         if (reminderAt) {
             await tx.execute({
-                sql: 'INSERT INTO Recordatorios (nota_id, reminder_at, is_sent, owner_id) VALUES (?, ?, 0, ?)',
+                sql: `INSERT INTO Recordatorios (${remindersNoteIdColumn}, reminder_at, is_sent, owner_id) VALUES (?, ?, 0, ?)`,
                 args: [newId, reminderAt, req.workspaceId]
             });
         }
@@ -325,7 +336,7 @@ app.get('/api/notes/:id/details', async (req, res) => {
                 args: [req.params.id, req.workspaceId]
             }),
             db.execute({
-                sql: 'SELECT id, reminder_at, is_sent FROM Recordatorios WHERE nota_id = ? AND owner_id = ? ORDER BY reminder_at',
+                sql: `SELECT id, reminder_at, is_sent FROM Recordatorios WHERE ${remindersNoteIdColumn} = ? AND owner_id = ? ORDER BY reminder_at`,
                 args: [req.params.id, req.workspaceId]
             })
         ]);
