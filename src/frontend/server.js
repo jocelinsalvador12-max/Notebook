@@ -37,6 +37,26 @@ async function initializeWorkspaceSchema() {
             await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
         }
     }
+    await db.execute(`CREATE TABLE IF NOT EXISTS Subtareas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nota_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        owner_id TEXT NOT NULL
+    )`);
+    await db.execute(`CREATE TABLE IF NOT EXISTS Recordatorios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nota_id INTEGER NOT NULL,
+        reminder_at TEXT NOT NULL,
+        is_sent INTEGER NOT NULL DEFAULT 0,
+        owner_id TEXT NOT NULL
+    )`);
+    for (const table of ['Subtareas', 'Recordatorios']) {
+        const columns = await db.execute(`PRAGMA table_info(${table})`);
+        if (!columns.rows.some(column => column.name === 'owner_id')) {
+            await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
+        }
+    }
     const noteColumns = await db.execute('PRAGMA table_info(Notas)');
     if (!noteColumns.rows.some(column => column.name === 'created_at')) {
         await db.execute('ALTER TABLE Notas ADD COLUMN created_at TEXT');
@@ -208,8 +228,16 @@ app.get('/api/notes', async (req, res) => {
 // POST: Guardar nueva nota en Turso DB
 app.post('/api/notes', async (req, res) => {
     const { title, content, color, category, assigned_at, due_at } = req.body;
+    const subtasks = Array.isArray(req.body.subtasks)
+        ? req.body.subtasks.map(value => String(value).trim()).filter(Boolean).slice(0, 100)
+        : [];
+    const reminderAt = typeof req.body.reminder_at === 'string' && req.body.reminder_at.trim()
+        ? req.body.reminder_at.trim()
+        : null;
+    let tx;
     try {
-        const result = await db.execute({
+        tx = await db.transaction('write');
+        const result = await tx.execute({
             sql: `INSERT INTO Notas (title, content, color, category, is_favorite, in_trash, assigned_at, due_at, owner_id, created_at) VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?)`,
             args: [
                 title || 'Sin título',
@@ -223,10 +251,52 @@ app.post('/api/notes', async (req, res) => {
             ]
         });
         const newId = result.lastInsertRowid ? Number(result.lastInsertRowid) : null;
+        if (newId === null) throw new Error('Turso no devolvió el ID de la nota creada.');
+        for (const title of subtasks) {
+            await tx.execute({
+                sql: 'INSERT INTO Subtareas (nota_id, title, is_completed, owner_id) VALUES (?, ?, 0, ?)',
+                args: [newId, title, req.workspaceId]
+            });
+        }
+        if (reminderAt) {
+            await tx.execute({
+                sql: 'INSERT INTO Recordatorios (nota_id, reminder_at, is_sent, owner_id) VALUES (?, ?, 0, ?)',
+                args: [newId, reminderAt, req.workspaceId]
+            });
+        }
+        await tx.commit();
         res.status(201).json({ id: newId, message: 'Nota guardada en Turso DB' });
     } catch (error) {
+        if (tx) await tx.rollback().catch(() => {});
         console.error('Error al insertar nota:', error);
         res.status(500).json({ error: error.message });
+    } finally {
+        if (tx) tx.close().catch(() => {});
+    }
+});
+
+// Consultar recordatorios y subtareas guardados junto a una nota.
+app.get('/api/notes/:id/details', async (req, res) => {
+    try {
+        const note = await db.execute({
+            sql: 'SELECT id FROM Notas WHERE id = ? AND owner_id = ? LIMIT 1',
+            args: [req.params.id, req.workspaceId]
+        });
+        if (!note.rows[0]) return res.status(404).json({ error: 'No se encontró la nota.' });
+        const [subtasks, reminders] = await Promise.all([
+            db.execute({
+                sql: 'SELECT id, title, is_completed FROM Subtareas WHERE nota_id = ? AND owner_id = ? ORDER BY id',
+                args: [req.params.id, req.workspaceId]
+            }),
+            db.execute({
+                sql: 'SELECT id, reminder_at, is_sent FROM Recordatorios WHERE nota_id = ? AND owner_id = ? ORDER BY reminder_at',
+                args: [req.params.id, req.workspaceId]
+            })
+        ]);
+        res.json({ subtasks: subtasks.rows, reminders: reminders.rows });
+    } catch (error) {
+        console.error('Error al consultar detalles de la nota:', error);
+        res.status(500).json({ error: 'No se pudieron consultar recordatorios y subtareas.' });
     }
 });
 
@@ -251,10 +321,11 @@ const handleFavorite = async (req, res) => {
     const val = (isFav === true || isFav === 'true' || isFav === 1 || isFav === '1') ? 1 : 0;
 
     try {
-        await db.execute({
+        const result = await db.execute({
             sql: 'UPDATE Notas SET is_favorite = ? WHERE id = ? AND owner_id = ?',
             args: [val, id, req.workspaceId]
         });
+        if (result.rowsAffected === 0) return res.status(404).json({ success: false, error: 'No se encontró la nota en este espacio de trabajo.' });
         res.json({ success: true, id, is_favorite: val });
     } catch (error) {
         console.error('Error al actualizar favorito:', error);
@@ -285,10 +356,11 @@ const handleTrash = async (req, res) => {
     const val = (isTrash === true || isTrash === 'true' || isTrash === 1 || isTrash === '1') ? 1 : 0;
 
     try {
-        await db.execute({
+        const result = await db.execute({
             sql: 'UPDATE Notas SET in_trash = ? WHERE id = ? AND owner_id = ?',
             args: [val, id, req.workspaceId]
         });
+        if (result.rowsAffected === 0) return res.status(404).json({ success: false, error: 'No se encontró la nota en este espacio de trabajo.' });
         res.json({ success: true, id, in_trash: val });
     } catch (error) {
         console.error('Error al mover/restaurar papelera:', error);

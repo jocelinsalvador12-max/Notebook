@@ -202,6 +202,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectCategory = document.getElementById('note-category');
     const inputAssigned = document.getElementById('note-assigned');
     const inputDue = document.getElementById('note-due');
+    const inputReminder = document.getElementById('note-reminder');
+    const inputSubtasks = document.getElementById('note-subtasks');
     const colorSwatches = document.querySelectorAll('#color-swatches .swatch-btn');
 
     // Botones de acción / apertura modal
@@ -229,7 +231,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error(`Error HTTP ${response.status} en ${endpoint}:`, lastAPIError);
                 return null;
             }
-            return await response.json();
+            const result = await response.json();
+            // The API returns success for some UPDATEs even if the selected
+            // workspace does not own that row. Surface that as a failed save.
+            if (result && result.success === false) {
+                lastAPIError = result.error || 'La operación no se completó.';
+                return null;
+            }
+            return result;
         } catch (err) {
             lastAPIError = 'No se pudo conectar con el servidor. Verifica que esté iniciado e inténtalo de nuevo.';
             console.error(`Error de conexión con la API (${endpoint}):`, err);
@@ -961,6 +970,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (inputContent) inputContent.value = '';
             if (inputAssigned) inputAssigned.value = '';
             if (inputDue) inputDue.value = '';
+            if (inputReminder) inputReminder.value = '';
+            if (inputSubtasks) inputSubtasks.value = '';
         }
     }
 
@@ -991,7 +1002,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const payload = { title, content, color, category, assigned_at, due_at };
+            const reminder_at = inputReminder && inputReminder.value ? inputReminder.value : null;
+            const subtasks = inputSubtasks ? inputSubtasks.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean) : [];
+            const payload = { title, content, color, category, assigned_at, due_at, reminder_at, subtasks };
             const createdAt = new Date().toISOString();
             btnSaveNote.disabled = true;
             btnSaveNote.textContent = 'Guardando...';

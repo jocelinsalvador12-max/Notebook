@@ -35,6 +35,7 @@ Table Subtareas {
   nota_id integer [not null]
   title text [not null]
   is_completed integer [not null, default: 0]
+  owner_id text
   id integer [pk, increment]
 }
 
@@ -42,6 +43,7 @@ Table Recordatorios {
   nota_id integer [not null]
   reminder_at datetime [not null]
   is_sent integer [not null, default: 0]
+  owner_id text
   id integer [pk, increment]
 }
 

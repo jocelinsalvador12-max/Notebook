@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
@@ -33,7 +33,10 @@ def read_notes():
 # 2. Crear una nueva nota
 @app.post("/api/notes")
 def add_note(note: NoteCreate):
-    return create_note(note)
+    result = create_note(note)
+    if result is None:
+        raise HTTPException(status_code=500, detail="No se pudo guardar la nota en Turso.")
+    return result
 
 # 3. Obtener notas marcadas como favoritas
 @app.get("/api/favorites")

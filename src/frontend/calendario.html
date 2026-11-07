@@ -773,9 +773,12 @@
                     const data = await res.json();
                     notesWithDates = Array.isArray(data) ? data : [];
                     refreshView();
+                } else {
+                    const error = await res.json().catch(() => ({}));
+                    console.error('No se pudieron cargar las notas del calendario:', error.error || error.detail || res.status);
                 }
             } catch (e) {
-                console.log('API de notas no disponible:', e);
+                console.error('API de notas no disponible:', e);
             }
         }
 
