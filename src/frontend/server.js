@@ -290,11 +290,11 @@ app.post('/api/notes', async (req, res) => {
         await tx.commit();
         res.status(201).json({ id: newId, message: 'Nota guardada en Turso DB' });
     } catch (error) {
-        if (tx) await tx.rollback().catch(() => {});
+        if (tx && !tx.closed) await tx.rollback().catch(() => {});
         console.error('Error al insertar nota:', error);
         res.status(500).json({ error: error.message });
     } finally {
-        if (tx) tx.close().catch(() => {});
+        if (tx) tx.close();
     }
 });
 

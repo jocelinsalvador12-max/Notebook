@@ -1035,7 +1035,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeModal();
                 loadCurrentView();
             } else {
-                alert('Ocurrió un error al guardar la nota en la base de datos.');
+                alert(`Ocurrió un error al guardar la nota: ${lastAPIError || 'la base de datos rechazó la operación.'}`);
             }
         });
     }
