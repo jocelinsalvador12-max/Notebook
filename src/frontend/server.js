@@ -23,6 +23,29 @@ const db = (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN)
 // Inicializar esquema (agregar columnas si no existen)
 async function initializeWorkspaceSchema() {
     if (!db) return; // nada que hacer si no hay DB
+    // La app puede desplegarse contra una base Turso recién creada. Crear las
+    // tablas base antes de ejecutar PRAGMA/ALTER TABLE evita que el arranque
+    // falle con "no such table".
+    await db.execute(`CREATE TABLE IF NOT EXISTS Notas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL DEFAULT '',
+        color TEXT NOT NULL DEFAULT 'card-peach',
+        category TEXT NOT NULL DEFAULT 'General',
+        is_favorite INTEGER NOT NULL DEFAULT 0,
+        in_trash INTEGER NOT NULL DEFAULT 0,
+        assigned_at TEXT,
+        due_at TEXT,
+        created_at TEXT,
+        owner_id TEXT
+    )`);
+    await db.execute(`CREATE TABLE IF NOT EXISTS Categorias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        color TEXT,
+        icon TEXT,
+        owner_id TEXT
+    )`);
     await db.execute(`CREATE TABLE IF NOT EXISTS Usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL,

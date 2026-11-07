@@ -62,6 +62,15 @@
         }
         .cal-btn:hover { background: rgba(139,92,246,0.25); }
 
+        .cal-add-btn {
+            border: 0; border-radius: 10px; padding: 9px 14px; background: #7C3AED;
+            color: #fff; font: 600 0.88rem 'Plus Jakarta Sans', sans-serif; cursor: pointer;
+        }
+        .cal-add-btn:hover { background: #6D28D9; }
+        .cal-event-form { display: grid; gap: 12px; }
+        .cal-event-form label { display: grid; gap: 5px; font-size: .85rem; font-weight: 600; color: #4B5563; }
+        .cal-event-form input, .cal-event-form textarea { width: 100%; padding: 10px; border: 1px solid #DDD6FE; border-radius: 8px; font: inherit; }
+
         .cal-view-tabs {
             display: flex;
             gap: 6px;
@@ -381,6 +390,7 @@
                         <button class="cal-view-tab" id="tab-semana">Semana</button>
                         <button class="cal-view-tab" id="tab-dia">Día</button>
                     </div>
+                    <button class="cal-add-btn" id="btn-add-calendar-event" type="button">＋ Nuevo evento</button>
                 </div>
 
                 <!-- Vista Mes -->
@@ -432,6 +442,22 @@
         </main>
     </div>
 
+    <div id="calendar-event-modal" class="editor-modal" aria-hidden="true">
+        <form id="calendar-event-form" class="editor-content cal-event-form">
+            <div class="modal-header">
+                <h2>Nuevo evento</h2>
+                <button id="calendar-event-close" class="modal-close-btn" type="button" aria-label="Cerrar">&times;</button>
+            </div>
+            <label>Título<input id="calendar-event-title" maxlength="100" required /></label>
+            <label>Detalles<textarea id="calendar-event-content" rows="3"></textarea></label>
+            <label>Fecha y hora<input id="calendar-event-date" type="datetime-local" required /></label>
+            <div class="modal-actions">
+                <button id="calendar-event-cancel" class="btn-cancel" type="button">Cancelar</button>
+                <button id="calendar-event-save" class="btn-save" type="submit">Guardar evento</button>
+            </div>
+        </form>
+    </div>
+
     <script type="module" src="./script.js"></script>
     <script>
     (() => {
@@ -453,6 +479,57 @@
 
         const calTitle = document.getElementById('cal-title');
         const calCells = document.getElementById('cal-cells');
+        const eventModal = document.getElementById('calendar-event-modal');
+        const eventForm = document.getElementById('calendar-event-form');
+        const eventDateInput = document.getElementById('calendar-event-date');
+
+        function formatLocalDateTime(date) {
+            const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+            return local.toISOString().slice(0, 16);
+        }
+        function closeEventModal() {
+            eventModal.classList.remove('active');
+            eventModal.setAttribute('aria-hidden', 'true');
+        }
+        document.getElementById('btn-add-calendar-event').addEventListener('click', () => {
+            const selected = new Date(currentYear, currentMonth, selectedDay || 1, 9, 0);
+            eventDateInput.value = formatLocalDateTime(selected);
+            eventModal.classList.add('active');
+            eventModal.setAttribute('aria-hidden', 'false');
+            document.getElementById('calendar-event-title').focus();
+        });
+        document.getElementById('calendar-event-close').addEventListener('click', closeEventModal);
+        document.getElementById('calendar-event-cancel').addEventListener('click', closeEventModal);
+        eventModal.addEventListener('click', event => { if (event.target === eventModal) closeEventModal(); });
+        eventForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const saveButton = document.getElementById('calendar-event-save');
+            saveButton.disabled = true;
+            try {
+                const response = await fetch('/api/notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Workspace-Id': workspaceId },
+                    body: JSON.stringify({
+                        title: document.getElementById('calendar-event-title').value.trim(),
+                        content: document.getElementById('calendar-event-content').value.trim(),
+                        color: 'card-lavender', category: 'General',
+                        assigned_at: null, due_at: eventDateInput.value
+                    })
+                });
+                if (!response.ok) {
+                    const errorBody = await response.json().catch(() => ({}));
+                    throw new Error(errorBody.error || `Error del servidor (${response.status}).`);
+                }
+                eventForm.reset();
+                closeEventModal();
+                await loadCalendarNotes();
+            } catch (error) {
+                console.error('No se pudo guardar el evento:', error);
+                alert(`No se pudo guardar el evento: ${error.message}`);
+            } finally {
+                saveButton.disabled = false;
+            }
+        });
 
         // ── Renderizar vista Mes ──
         function renderMes() {

@@ -464,13 +464,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 
                 card.querySelector('.btn-restore')?.addEventListener('click', async () => {
-                    await fetchAPI(`/notes/${item.id}/trash?is_trash=false`, 'PUT');
+                    const restored = await fetchAPI(`/notes/${item.id}/trash?is_trash=false`, 'PUT');
+                    if (!restored) {
+                        alert(lastAPIError || 'No se pudo restaurar la nota.');
+                        return;
+                    }
                     loadCurrentView();
                 });
 
                 card.querySelector('.btn-delete-perm')?.addEventListener('click', async () => {
                     if (confirm(`¿Eliminar permanentemente "${item.title || 'esta nota'}"?`)) {
-                        await fetchAPI(`/notes/${item.id}`, 'DELETE');
+                    const deleted = await fetchAPI(`/notes/${item.id}`, 'DELETE');
+                    if (!deleted) {
+                        alert(lastAPIError || 'No se pudo eliminar la nota.');
+                        return;
+                    }
                         loadCurrentView();
                     }
                 });
@@ -515,13 +523,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 card.querySelector('.btn-fav')?.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    await fetchAPI(`/notes/${item.id}/favorite?is_favorite=${!isFav}`, 'PUT');
+                    const updated = await fetchAPI(`/notes/${item.id}/favorite?is_favorite=${!isFav}`, 'PUT');
+                    if (!updated) {
+                        alert(lastAPIError || 'No se pudo actualizar Favoritos.');
+                        return;
+                    }
                     loadCurrentView();
                 });
 
                 card.querySelector('.btn-delete')?.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    await fetchAPI(`/notes/${item.id}/trash?is_trash=true`, 'PUT');
+                    const moved = await fetchAPI(`/notes/${item.id}/trash?is_trash=true`, 'PUT');
+                    if (!moved) {
+                        alert(lastAPIError || 'No se pudo mover la nota a la papelera.');
+                        return;
+                    }
                     loadCurrentView();
                 });
             }
