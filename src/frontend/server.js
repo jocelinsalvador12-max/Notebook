@@ -19,10 +19,10 @@ const db = (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN)
         authToken: process.env.TURSO_AUTH_TOKEN
     })
     : null;
-let subtasksNoteIdColumn = 'nota_id';
-let remindersNoteIdColumn = 'nota_id';
-let reminderAtColumn = 'reminder_at';
-let reminderSentColumn = 'is_sent';
+let subtasksNoteIdColumns = ['nota_id'];
+let remindersNoteIdColumns = ['nota_id'];
+let reminderAtColumns = ['reminder_at'];
+let reminderSentColumns = ['is_sent'];
 let categoryIdColumn = 'id';
 let categoryNameColumn = 'name';
 let categoryColorColumn = 'color';
@@ -99,30 +99,31 @@ async function initializeWorkspaceSchema() {
     }
     const subtaskColumns = await db.execute('PRAGMA table_info(Subtareas)');
     const subtaskColumnNames = subtaskColumns.rows.map(column => column.name);
-    if (subtaskColumnNames.includes('nota_id')) {
-        subtasksNoteIdColumn = 'nota_id';
-    } else if (subtaskColumnNames.includes('note_id')) {
-        subtasksNoteIdColumn = 'note_id';
-    } else {
+    subtasksNoteIdColumns = ['nota_id', 'note_id'].filter(column => subtaskColumnNames.includes(column));
+    if (subtasksNoteIdColumns.length === 0) {
         // Bases antiguas pueden tener la tabla vacía de vínculo por diferencias
         // entre versiones del esquema. Agregar la columna sin tocar sus datos.
         await db.execute('ALTER TABLE Subtareas ADD COLUMN nota_id INTEGER');
-        subtasksNoteIdColumn = 'nota_id';
+        subtasksNoteIdColumns = ['nota_id'];
     }
     const reminderColumns = await db.execute('PRAGMA table_info(Recordatorios)');
     const reminderColumnNames = reminderColumns.rows.map(column => column.name);
-    if (reminderColumnNames.includes('nota_id')) {
-        remindersNoteIdColumn = 'nota_id';
-    } else if (reminderColumnNames.includes('note_id')) {
-        remindersNoteIdColumn = 'note_id';
-    } else {
+    remindersNoteIdColumns = ['nota_id', 'note_id'].filter(column => reminderColumnNames.includes(column));
+    if (remindersNoteIdColumns.length === 0) {
         await db.execute('ALTER TABLE Recordatorios ADD COLUMN nota_id INTEGER');
-        remindersNoteIdColumn = 'nota_id';
+        remindersNoteIdColumns = ['nota_id'];
     }
-    reminderAtColumn = ['reminder_at', 'remind_at', 'reminderAt', 'fecha_recordatorio', 'fecha_hora', 'fecha', 'recordatorio'].find(column => reminderColumnNames.includes(column)) || 'reminder_at';
-    reminderSentColumn = ['is_sent', 'isSent', 'enviado'].find(column => reminderColumnNames.includes(column)) || 'is_sent';
-    if (!reminderColumnNames.includes(reminderAtColumn)) await db.execute('ALTER TABLE Recordatorios ADD COLUMN reminder_at TEXT');
-    if (!reminderColumnNames.includes(reminderSentColumn)) await db.execute('ALTER TABLE Recordatorios ADD COLUMN is_sent INTEGER NOT NULL DEFAULT 0');
+    const reminderDateAliases = ['reminder_at', 'remind_at', 'reminderAt', 'fecha_recordatorio', 'fecha_hora', 'fecha', 'recordatorio'];
+    reminderAtColumns = reminderDateAliases.filter(column => reminderColumnNames.includes(column));
+    if (reminderAtColumns.length === 0) {
+        await db.execute('ALTER TABLE Recordatorios ADD COLUMN reminder_at TEXT');
+        reminderAtColumns = ['reminder_at'];
+    }
+    reminderSentColumns = ['is_sent', 'isSent', 'enviado'].filter(column => reminderColumnNames.includes(column));
+    if (reminderSentColumns.length === 0) {
+        await db.execute('ALTER TABLE Recordatorios ADD COLUMN is_sent INTEGER NOT NULL DEFAULT 0');
+        reminderSentColumns = ['is_sent'];
+    }
     const noteColumns = await db.execute('PRAGMA table_info(Notas)');
     if (!noteColumns.rows.some(column => column.name === 'created_at')) {
         await db.execute('ALTER TABLE Notas ADD COLUMN created_at TEXT');
@@ -319,15 +320,24 @@ app.post('/api/notes', async (req, res) => {
         const newId = result.lastInsertRowid ? Number(result.lastInsertRowid) : null;
         if (newId === null) throw new Error('Turso no devolvió el ID de la nota creada.');
         for (const title of subtasks) {
+            const subtaskInsertColumns = [...subtasksNoteIdColumns, 'title', 'is_completed', 'owner_id'];
+            const subtaskInsertValues = [...subtasksNoteIdColumns.map(() => newId), title, 0, req.workspaceId];
             await tx.execute({
-                sql: `INSERT INTO Subtareas (${subtasksNoteIdColumn}, title, is_completed, owner_id) VALUES (?, ?, 0, ?)`,
-                args: [newId, title, req.workspaceId]
+                sql: `INSERT INTO Subtareas (${subtaskInsertColumns.join(', ')}) VALUES (${subtaskInsertColumns.map(() => '?').join(', ')})`,
+                args: subtaskInsertValues
             });
         }
         if (reminderAt) {
+            const reminderInsertColumns = [...remindersNoteIdColumns, ...reminderAtColumns, ...reminderSentColumns, 'owner_id'];
+            const reminderInsertValues = [
+                ...remindersNoteIdColumns.map(() => newId),
+                ...reminderAtColumns.map(() => reminderAt),
+                ...reminderSentColumns.map(() => 0),
+                req.workspaceId
+            ];
             await tx.execute({
-                sql: `INSERT INTO Recordatorios (${remindersNoteIdColumn}, ${reminderAtColumn}, ${reminderSentColumn}, owner_id) VALUES (?, ?, 0, ?)`,
-                args: [newId, reminderAt, req.workspaceId]
+                sql: `INSERT INTO Recordatorios (${reminderInsertColumns.join(', ')}) VALUES (${reminderInsertColumns.map(() => '?').join(', ')})`,
+                args: reminderInsertValues
             });
         }
         await tx.commit();
@@ -351,11 +361,11 @@ app.get('/api/notes/:id/details', async (req, res) => {
         if (!note.rows[0]) return res.status(404).json({ error: 'No se encontró la nota.' });
         const [subtasks, reminders] = await Promise.all([
             db.execute({
-                sql: `SELECT id, title, is_completed FROM Subtareas WHERE ${subtasksNoteIdColumn} = ? AND owner_id = ? ORDER BY id`,
+                sql: `SELECT id, title, is_completed FROM Subtareas WHERE ${subtasksNoteIdColumns[0]} = ? AND owner_id = ? ORDER BY id`,
                 args: [req.params.id, req.workspaceId]
             }),
             db.execute({
-                sql: `SELECT id, ${reminderAtColumn} AS reminder_at, ${reminderSentColumn} AS is_sent FROM Recordatorios WHERE ${remindersNoteIdColumn} = ? AND owner_id = ? ORDER BY ${reminderAtColumn}`,
+                sql: `SELECT id, ${reminderAtColumns[0]} AS reminder_at, ${reminderSentColumns[0]} AS is_sent FROM Recordatorios WHERE ${remindersNoteIdColumns[0]} = ? AND owner_id = ? ORDER BY ${reminderAtColumns[0]}`,
                 args: [req.params.id, req.workspaceId]
             })
         ]);
