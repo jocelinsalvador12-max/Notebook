@@ -54,6 +54,23 @@ async function initializeWorkspaceSchema() {
         icon TEXT,
         owner_id TEXT
     )`);
+    for (const table of ['Favoritos', 'Papelera']) {
+        await db.execute(`CREATE TABLE IF NOT EXISTS ${table} (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            content TEXT,
+            color TEXT,
+            owner_id TEXT
+        )`);
+        const columns = await db.execute(`PRAGMA table_info(${table})`);
+        if (!columns.rows.some(column => column.name === 'owner_id')) {
+            await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
+        }
+    }
+    await db.execute(`INSERT OR REPLACE INTO Favoritos (id, title, content, color, owner_id)
+        SELECT id, title, content, color, owner_id FROM Notas WHERE is_favorite = 1`);
+    await db.execute(`INSERT OR REPLACE INTO Papelera (id, title, content, color, owner_id)
+        SELECT id, title, content, color, owner_id FROM Notas WHERE in_trash = 1`);
     await db.execute(`CREATE TABLE IF NOT EXISTS Usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL,
@@ -396,16 +413,31 @@ const handleFavorite = async (req, res) => {
     let isFav = req.query.is_favorite !== undefined ? req.query.is_favorite : req.body.is_favorite;
     const val = (isFav === true || isFav === 'true' || isFav === 1 || isFav === '1') ? 1 : 0;
 
+    let tx;
     try {
-        const result = await db.execute({
+        tx = await db.transaction('write');
+        const result = await tx.execute({
             sql: 'UPDATE Notas SET is_favorite = ? WHERE id = ? AND owner_id = ?',
             args: [val, id, req.workspaceId]
         });
         if (result.rowsAffected === 0) return res.status(404).json({ success: false, error: 'No se encontró la nota en este espacio de trabajo.' });
+        if (val) {
+            await tx.execute({
+                sql: `INSERT OR REPLACE INTO Favoritos (id, title, content, color, owner_id)
+                      SELECT id, title, content, color, owner_id FROM Notas WHERE id = ? AND owner_id = ?`,
+                args: [id, req.workspaceId]
+            });
+        } else {
+            await tx.execute({ sql: 'DELETE FROM Favoritos WHERE id = ? AND owner_id = ?', args: [id, req.workspaceId] });
+        }
+        await tx.commit();
         res.json({ success: true, id, is_favorite: val });
     } catch (error) {
+        if (tx && !tx.closed) await tx.rollback().catch(() => {});
         console.error('Error al actualizar favorito:', error);
         res.status(500).json({ error: error.message });
+    } finally {
+        if (tx) tx.close();
     }
 };
 app.put('/api/notes/:id/favorite', handleFavorite);
@@ -431,16 +463,31 @@ const handleTrash = async (req, res) => {
     let isTrash = req.query.is_trash !== undefined ? req.query.is_trash : (req.body.is_trash !== undefined ? req.body.is_trash : req.body.is_trashed);
     const val = (isTrash === true || isTrash === 'true' || isTrash === 1 || isTrash === '1') ? 1 : 0;
 
+    let tx;
     try {
-        const result = await db.execute({
+        tx = await db.transaction('write');
+        const result = await tx.execute({
             sql: 'UPDATE Notas SET in_trash = ? WHERE id = ? AND owner_id = ?',
             args: [val, id, req.workspaceId]
         });
         if (result.rowsAffected === 0) return res.status(404).json({ success: false, error: 'No se encontró la nota en este espacio de trabajo.' });
+        if (val) {
+            await tx.execute({
+                sql: `INSERT OR REPLACE INTO Papelera (id, title, content, color, owner_id)
+                      SELECT id, title, content, color, owner_id FROM Notas WHERE id = ? AND owner_id = ?`,
+                args: [id, req.workspaceId]
+            });
+        } else {
+            await tx.execute({ sql: 'DELETE FROM Papelera WHERE id = ? AND owner_id = ?', args: [id, req.workspaceId] });
+        }
+        await tx.commit();
         res.json({ success: true, id, in_trash: val });
     } catch (error) {
+        if (tx && !tx.closed) await tx.rollback().catch(() => {});
         console.error('Error al mover/restaurar papelera:', error);
         res.status(500).json({ error: error.message });
+    } finally {
+        if (tx) tx.close();
     }
 };
 app.put('/api/notes/:id/trash', handleTrash);
@@ -449,15 +496,29 @@ app.patch('/api/notes/:id/trash', handleTrash);
 // DELETE: Eliminar permanentemente una nota de la BD
 app.delete('/api/notes/:id', async (req, res) => {
     const { id } = req.params;
+    let tx;
     try {
-        await db.execute({
-            sql: 'DELETE FROM Notas WHERE id = ? AND owner_id = ?',
+        tx = await db.transaction('write');
+        const existing = await tx.execute({
+            sql: 'SELECT id FROM Notas WHERE id = ? AND owner_id = ?',
             args: [id, req.workspaceId]
         });
+        if (!existing.rows[0]) return res.status(404).json({ error: 'No se encontró la nota en este espacio de trabajo.' });
+        await tx.execute({ sql: 'DELETE FROM Favoritos WHERE id = ? AND owner_id = ?', args: [id, req.workspaceId] });
+        await tx.execute({ sql: 'DELETE FROM Papelera WHERE id = ? AND owner_id = ?', args: [id, req.workspaceId] });
+        const subtaskWhere = subtasksNoteIdColumns.map(column => `${column} = ?`).join(' OR ');
+        await tx.execute({ sql: `DELETE FROM Subtareas WHERE (${subtaskWhere}) AND owner_id = ?`, args: [...subtasksNoteIdColumns.map(() => id), req.workspaceId] });
+        const reminderWhere = remindersNoteIdColumns.map(column => `${column} = ?`).join(' OR ');
+        await tx.execute({ sql: `DELETE FROM Recordatorios WHERE (${reminderWhere}) AND owner_id = ?`, args: [...remindersNoteIdColumns.map(() => id), req.workspaceId] });
+        await tx.execute({ sql: 'DELETE FROM Notas WHERE id = ? AND owner_id = ?', args: [id, req.workspaceId] });
+        await tx.commit();
         res.json({ success: true, message: 'Nota eliminada permanentemente' });
     } catch (error) {
+        if (tx && !tx.closed) await tx.rollback().catch(() => {});
         console.error('Error al eliminar nota:', error);
         res.status(500).json({ error: error.message });
+    } finally {
+        if (tx) tx.close();
     }
 });
 
