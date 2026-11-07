@@ -19,6 +19,7 @@ const db = (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN)
         authToken: process.env.TURSO_AUTH_TOKEN
     })
     : null;
+let subtasksNoteIdColumn = 'nota_id';
 
 // Inicializar esquema (agregar columnas si no existen)
 async function initializeWorkspaceSchema() {
@@ -79,6 +80,18 @@ async function initializeWorkspaceSchema() {
         if (!columns.rows.some(column => column.name === 'owner_id')) {
             await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
         }
+    }
+    const subtaskColumns = await db.execute('PRAGMA table_info(Subtareas)');
+    const subtaskColumnNames = subtaskColumns.rows.map(column => column.name);
+    if (subtaskColumnNames.includes('nota_id')) {
+        subtasksNoteIdColumn = 'nota_id';
+    } else if (subtaskColumnNames.includes('note_id')) {
+        subtasksNoteIdColumn = 'note_id';
+    } else {
+        // Bases antiguas pueden tener la tabla vacía de vínculo por diferencias
+        // entre versiones del esquema. Agregar la columna sin tocar sus datos.
+        await db.execute('ALTER TABLE Subtareas ADD COLUMN nota_id INTEGER');
+        subtasksNoteIdColumn = 'nota_id';
     }
     const noteColumns = await db.execute('PRAGMA table_info(Notas)');
     if (!noteColumns.rows.some(column => column.name === 'created_at')) {
@@ -277,7 +290,7 @@ app.post('/api/notes', async (req, res) => {
         if (newId === null) throw new Error('Turso no devolvió el ID de la nota creada.');
         for (const title of subtasks) {
             await tx.execute({
-                sql: 'INSERT INTO Subtareas (nota_id, title, is_completed, owner_id) VALUES (?, ?, 0, ?)',
+                sql: `INSERT INTO Subtareas (${subtasksNoteIdColumn}, title, is_completed, owner_id) VALUES (?, ?, 0, ?)`,
                 args: [newId, title, req.workspaceId]
             });
         }
@@ -308,7 +321,7 @@ app.get('/api/notes/:id/details', async (req, res) => {
         if (!note.rows[0]) return res.status(404).json({ error: 'No se encontró la nota.' });
         const [subtasks, reminders] = await Promise.all([
             db.execute({
-                sql: 'SELECT id, title, is_completed FROM Subtareas WHERE nota_id = ? AND owner_id = ? ORDER BY id',
+                sql: `SELECT id, title, is_completed FROM Subtareas WHERE ${subtasksNoteIdColumn} = ? AND owner_id = ? ORDER BY id`,
                 args: [req.params.id, req.workspaceId]
             }),
             db.execute({
