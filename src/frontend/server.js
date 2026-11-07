@@ -119,7 +119,7 @@ async function initializeWorkspaceSchema() {
         await db.execute('ALTER TABLE Recordatorios ADD COLUMN nota_id INTEGER');
         remindersNoteIdColumn = 'nota_id';
     }
-    reminderAtColumn = ['reminder_at', 'reminderAt', 'fecha_recordatorio', 'fecha_hora', 'fecha', 'recordatorio'].find(column => reminderColumnNames.includes(column)) || 'reminder_at';
+    reminderAtColumn = ['reminder_at', 'remind_at', 'reminderAt', 'fecha_recordatorio', 'fecha_hora', 'fecha', 'recordatorio'].find(column => reminderColumnNames.includes(column)) || 'reminder_at';
     reminderSentColumn = ['is_sent', 'isSent', 'enviado'].find(column => reminderColumnNames.includes(column)) || 'is_sent';
     if (!reminderColumnNames.includes(reminderAtColumn)) await db.execute('ALTER TABLE Recordatorios ADD COLUMN reminder_at TEXT');
     if (!reminderColumnNames.includes(reminderSentColumn)) await db.execute('ALTER TABLE Recordatorios ADD COLUMN is_sent INTEGER NOT NULL DEFAULT 0');
