@@ -21,6 +21,12 @@ const db = (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN)
     : null;
 let subtasksNoteIdColumn = 'nota_id';
 let remindersNoteIdColumn = 'nota_id';
+let reminderAtColumn = 'reminder_at';
+let reminderSentColumn = 'is_sent';
+let categoryIdColumn = 'id';
+let categoryNameColumn = 'name';
+let categoryColorColumn = 'color';
+let categoryIconColumn = 'icon';
 
 // Inicializar esquema (agregar columnas si no existen)
 async function initializeWorkspaceSchema() {
@@ -62,6 +68,15 @@ async function initializeWorkspaceSchema() {
             await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
         }
     }
+    const categoryColumns = await db.execute('PRAGMA table_info(Categorias)');
+    const categoryColumnNames = categoryColumns.rows.map(column => column.name);
+    categoryIdColumn = ['id', 'categoria_id', 'category_id'].find(column => categoryColumnNames.includes(column)) || 'id';
+    categoryNameColumn = ['name', 'nombre', 'nombre_categoria', 'folder_name'].find(column => categoryColumnNames.includes(column)) || 'name';
+    categoryColorColumn = ['color', 'colour', 'color_code'].find(column => categoryColumnNames.includes(column)) || 'color';
+    categoryIconColumn = ['icon', 'icono'].find(column => categoryColumnNames.includes(column)) || 'icon';
+    if (!categoryColumnNames.some(column => ['name', 'nombre', 'nombre_categoria', 'folder_name'].includes(column))) await db.execute('ALTER TABLE Categorias ADD COLUMN name TEXT');
+    if (!categoryColumnNames.includes(categoryColorColumn)) await db.execute('ALTER TABLE Categorias ADD COLUMN color TEXT');
+    if (!categoryColumnNames.includes(categoryIconColumn)) await db.execute('ALTER TABLE Categorias ADD COLUMN icon TEXT');
     await db.execute(`CREATE TABLE IF NOT EXISTS Subtareas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nota_id INTEGER NOT NULL,
@@ -104,6 +119,10 @@ async function initializeWorkspaceSchema() {
         await db.execute('ALTER TABLE Recordatorios ADD COLUMN nota_id INTEGER');
         remindersNoteIdColumn = 'nota_id';
     }
+    reminderAtColumn = ['reminder_at', 'reminderAt', 'fecha_recordatorio', 'fecha_hora', 'fecha', 'recordatorio'].find(column => reminderColumnNames.includes(column)) || 'reminder_at';
+    reminderSentColumn = ['is_sent', 'isSent', 'enviado'].find(column => reminderColumnNames.includes(column)) || 'is_sent';
+    if (!reminderColumnNames.includes(reminderAtColumn)) await db.execute('ALTER TABLE Recordatorios ADD COLUMN reminder_at TEXT');
+    if (!reminderColumnNames.includes(reminderSentColumn)) await db.execute('ALTER TABLE Recordatorios ADD COLUMN is_sent INTEGER NOT NULL DEFAULT 0');
     const noteColumns = await db.execute('PRAGMA table_info(Notas)');
     if (!noteColumns.rows.some(column => column.name === 'created_at')) {
         await db.execute('ALTER TABLE Notas ADD COLUMN created_at TEXT');
@@ -307,7 +326,7 @@ app.post('/api/notes', async (req, res) => {
         }
         if (reminderAt) {
             await tx.execute({
-                sql: `INSERT INTO Recordatorios (${remindersNoteIdColumn}, reminder_at, is_sent, owner_id) VALUES (?, ?, 0, ?)`,
+                sql: `INSERT INTO Recordatorios (${remindersNoteIdColumn}, ${reminderAtColumn}, ${reminderSentColumn}, owner_id) VALUES (?, ?, 0, ?)`,
                 args: [newId, reminderAt, req.workspaceId]
             });
         }
@@ -336,7 +355,7 @@ app.get('/api/notes/:id/details', async (req, res) => {
                 args: [req.params.id, req.workspaceId]
             }),
             db.execute({
-                sql: `SELECT id, reminder_at, is_sent FROM Recordatorios WHERE ${remindersNoteIdColumn} = ? AND owner_id = ? ORDER BY reminder_at`,
+                sql: `SELECT id, ${reminderAtColumn} AS reminder_at, ${reminderSentColumn} AS is_sent FROM Recordatorios WHERE ${remindersNoteIdColumn} = ? AND owner_id = ? ORDER BY ${reminderAtColumn}`,
                 args: [req.params.id, req.workspaceId]
             })
         ]);
@@ -454,7 +473,7 @@ app.patch('/api/notes/:id/category', handleNoteCategory);
 app.get('/api/categories', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT * FROM Categorias WHERE owner_id = ? ORDER BY id ASC',
+            sql: `SELECT ${categoryIdColumn} AS id, ${categoryNameColumn} AS name, ${categoryColorColumn} AS color, ${categoryIconColumn} AS icon, owner_id FROM Categorias WHERE owner_id = ? ORDER BY ${categoryIdColumn} ASC`,
             args: [req.workspaceId]
         });
         res.json(result.rows);
@@ -472,14 +491,14 @@ app.post('/api/categories', async (req, res) => {
     }
     try {
         const duplicate = await db.execute({
-            sql: 'SELECT id FROM Categorias WHERE owner_id = ? AND lower(name) = lower(?) LIMIT 1',
+            sql: `SELECT ${categoryIdColumn} AS id FROM Categorias WHERE owner_id = ? AND lower(${categoryNameColumn}) = lower(?) LIMIT 1`,
             args: [req.workspaceId, name.trim()]
         });
         if (duplicate.rows.length > 0) {
             return res.status(409).json({ error: 'Ya existe una carpeta con ese nombre' });
         }
         const result = await db.execute({
-            sql: 'INSERT INTO Categorias (name, color, icon, owner_id) VALUES (?, ?, ?, ?)',
+            sql: `INSERT INTO Categorias (${categoryNameColumn}, ${categoryColorColumn}, ${categoryIconColumn}, owner_id) VALUES (?, ?, ?, ?)`,
             args: [
                 name.trim(),
                 color || '#FCF5BF',
@@ -507,20 +526,20 @@ app.put('/api/categories/:id', async (req, res) => {
     }
     try {
         const currentResult = await db.execute({
-            sql: 'SELECT id, name FROM Categorias WHERE id = ? AND owner_id = ?',
+            sql: `SELECT ${categoryIdColumn} AS id, ${categoryNameColumn} AS name FROM Categorias WHERE ${categoryIdColumn} = ? AND owner_id = ?`,
             args: [id, req.workspaceId]
         });
         const current = currentResult.rows[0];
         if (!current) return res.status(404).json({ error: 'No se encontró la carpeta' });
         const duplicate = await db.execute({
-            sql: 'SELECT id FROM Categorias WHERE owner_id = ? AND lower(name) = lower(?) AND id <> ? LIMIT 1',
+            sql: `SELECT ${categoryIdColumn} AS id FROM Categorias WHERE owner_id = ? AND lower(${categoryNameColumn}) = lower(?) AND ${categoryIdColumn} <> ? LIMIT 1`,
             args: [req.workspaceId, name, id]
         });
         if (duplicate.rows.length > 0) {
             return res.status(409).json({ error: 'Ya existe una carpeta con ese nombre' });
         }
         await db.execute({
-            sql: 'UPDATE Categorias SET name = ? WHERE id = ? AND owner_id = ?',
+            sql: `UPDATE Categorias SET ${categoryNameColumn} = ? WHERE ${categoryIdColumn} = ? AND owner_id = ?`,
             args: [name, id, req.workspaceId]
         });
         await db.execute({
@@ -539,7 +558,7 @@ app.delete('/api/categories/:id', async (req, res) => {
     const { id } = req.params;
     try {
         const result = await db.execute({
-            sql: 'SELECT name FROM Categorias WHERE id = ? AND owner_id = ?',
+            sql: `SELECT ${categoryNameColumn} AS name FROM Categorias WHERE ${categoryIdColumn} = ? AND owner_id = ?`,
             args: [id, req.workspaceId]
         });
         const folder = result.rows[0];
@@ -549,7 +568,7 @@ app.delete('/api/categories/:id', async (req, res) => {
             args: ['', req.workspaceId, folder.name]
         });
         await db.execute({
-            sql: 'DELETE FROM Categorias WHERE id = ? AND owner_id = ?',
+            sql: `DELETE FROM Categorias WHERE ${categoryIdColumn} = ? AND owner_id = ?`,
             args: [id, req.workspaceId]
         });
         res.json({ success: true, message: 'Carpeta eliminada' });
