@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allNotesData = [];
     let currentCategoryFilter = 'All';
     let currentSearchQuery = '';
+    let isDraggingNote = false;
 
     // Mapeo de colores a la paleta oficial de la Imagen 2
     function getColorClass(colorName, categoryName) {
@@ -442,13 +443,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!isTrash && currentView === 'notes') {
                 card.draggable = true;
-                card.title = 'Arrastra esta nota a una carpeta de la barra lateral';
+                card.title = 'Haz clic para ver el contenido completo de esta nota (o arrastra a una carpeta)';
                 card.addEventListener('dragstart', event => {
+                    isDraggingNote = true;
                     event.dataTransfer.setData('text/plain', String(item.id));
                     event.dataTransfer.effectAllowed = 'move';
                     card.classList.add('is-dragging');
                 });
-                card.addEventListener('dragend', () => card.classList.remove('is-dragging'));
+                card.addEventListener('dragend', () => {
+                    card.classList.remove('is-dragging');
+                    setTimeout(() => { isDraggingNote = false; }, 120);
+                });
+            } else {
+                card.title = 'Haz clic para ver el contenido completo de esta nota';
             }
 
             if (isTrash) {
@@ -463,7 +470,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                card.querySelector('.btn-restore')?.addEventListener('click', async () => {
+                card.querySelector('.btn-restore')?.addEventListener('click', async (e) => {
+                    e.stopPropagation();
                     const restored = await fetchAPI(`/notes/${item.id}/trash?is_trash=false`, 'PUT');
                     if (!restored) {
                         alert(lastAPIError || 'No se pudo restaurar la nota.');
@@ -472,13 +480,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     loadCurrentView();
                 });
 
-                card.querySelector('.btn-delete-perm')?.addEventListener('click', async () => {
+                card.querySelector('.btn-delete-perm')?.addEventListener('click', async (e) => {
+                    e.stopPropagation();
                     if (confirm(`¿Eliminar permanentemente "${item.title || 'esta nota'}"?`)) {
-                    const deleted = await fetchAPI(`/notes/${item.id}`, 'DELETE');
-                    if (!deleted) {
-                        alert(lastAPIError || 'No se pudo eliminar la nota.');
-                        return;
-                    }
+                        const deleted = await fetchAPI(`/notes/${item.id}`, 'DELETE');
+                        if (!deleted) {
+                            alert(lastAPIError || 'No se pudo eliminar la nota.');
+                            return;
+                        }
                         loadCurrentView();
                     }
                 });
@@ -518,6 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <div class="card-bottom-row">
                         <span class="category-badge">${escapeHTML(item.category || 'General')}</span>
+                        <span class="card-expand-hint" title="Ver contenido completo">Ver nota ↗</span>
                     </div>
                 `;
 
@@ -542,8 +552,261 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
+            // Al presionar la nota se abre el modal con su contenido completo y formato bonito
+            card.addEventListener('click', (e) => {
+                if (isDraggingNote) return;
+                if (e.target.closest('button, .card-actions-quick, .trash-actions, a, input')) return;
+                openNoteDetailModal(item);
+            });
+
             notesGrid.appendChild(card);
         });
+    }
+
+    // =========================================================
+    // MODAL DE DETALLE Y LECTURA BONITA DE LA NOTA
+    // =========================================================
+    function formatNoteContentHTML(rawText) {
+        if (!rawText || !rawText.trim()) {
+            return '<p class="note-view-empty-content"><em>Esta nota no tiene contenido escrito aún.</em></p>';
+        }
+        const escaped = escapeHTML(rawText);
+        // Convertir enlaces en URLs clickeables
+        return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    }
+
+    function ensureNoteDetailModal() {
+        let modal = document.getElementById('note-detail-modal');
+        if (modal) return modal;
+
+        modal = document.createElement('div');
+        modal.id = 'note-detail-modal';
+        modal.className = 'editor-modal note-view-modal';
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = `
+            <div class="note-view-card">
+                <div class="note-view-accent-bar"></div>
+                <div class="note-view-header">
+                    <div class="note-view-meta">
+                        <span class="category-badge note-view-badge">General</span>
+                        <span class="note-view-date"></span>
+                        <span class="note-view-fav-pill">⭐ Favorita</span>
+                    </div>
+                    <div class="note-view-header-actions">
+                        <button type="button" class="btn-copy-note" title="Copiar texto de la nota">
+                            <span class="copy-icon">📋</span>
+                            <span class="copy-label">Copiar</span>
+                        </button>
+                        <button type="button" class="modal-close-btn note-view-close" aria-label="Cerrar">&times;</button>
+                    </div>
+                </div>
+
+                <div class="note-view-title-row">
+                    <span class="title-dot"></span>
+                    <h2 class="note-view-title"></h2>
+                </div>
+
+                <div class="note-view-dates-card" style="display: none;"></div>
+
+                <div class="note-view-subtasks-card" style="display: none;">
+                    <div class="note-view-subtasks-title"></div>
+                    <ul class="note-view-subtasks-list"></ul>
+                </div>
+
+                <div class="note-view-body-wrapper">
+                    <div class="note-view-content"></div>
+                </div>
+
+                <div class="note-view-footer">
+                    <div class="note-view-stats"></div>
+                    <div class="note-view-footer-actions">
+                        <button type="button" class="btn-view-fav"></button>
+                        <button type="button" class="btn-view-delete"></button>
+                        <button type="button" class="btn-view-done">Entendido</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeNoteDetailModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('active')) {
+                closeNoteDetailModal();
+            }
+        });
+
+        return modal;
+    }
+
+    function closeNoteDetailModal() {
+        const modal = document.getElementById('note-detail-modal');
+        if (modal) {
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    async function openNoteDetailModal(item) {
+        if (!item) return;
+        const modal = ensureNoteDetailModal();
+        const cardEl = modal.querySelector('.note-view-card');
+        const badgeEl = modal.querySelector('.note-view-badge');
+        const dateEl = modal.querySelector('.note-view-date');
+        const favPillEl = modal.querySelector('.note-view-fav-pill');
+        const titleEl = modal.querySelector('.note-view-title');
+        const datesCard = modal.querySelector('.note-view-dates-card');
+        const subtasksCard = modal.querySelector('.note-view-subtasks-card');
+        const subtasksTitle = modal.querySelector('.note-view-subtasks-title');
+        const subtasksList = modal.querySelector('.note-view-subtasks-list');
+        const contentEl = modal.querySelector('.note-view-content');
+        const statsEl = modal.querySelector('.note-view-stats');
+        const btnFav = modal.querySelector('.btn-view-fav');
+        const btnDelete = modal.querySelector('.btn-view-delete');
+        const btnDone = modal.querySelector('.btn-view-done');
+        const btnClose = modal.querySelector('.note-view-close');
+        const btnCopy = modal.querySelector('.btn-copy-note');
+
+        const colorClass = getColorClass(item.color, item.category);
+        const isFav = item.is_favorite === 1 || item.is_favorite === true;
+        const isTrash = currentView === 'trash' || item.in_trash === 1;
+        const formattedDate = formatNoteDate(item.created_at || null, item.id);
+
+        // Estilos del tema de color pastel
+        cardEl.className = `note-view-card ${colorClass}`;
+        badgeEl.textContent = item.category || 'General';
+        dateEl.textContent = `📅 ${formattedDate}`;
+        favPillEl.style.display = isFav ? 'inline-flex' : 'none';
+
+        titleEl.textContent = item.title || 'Sin título';
+
+        // Fechas de asignación y entrega
+        if (item.assigned_at || item.due_at) {
+            let datesHTML = '';
+            if (item.assigned_at) {
+                datesHTML += `<span class="note-view-date-chip">📌 <strong>Asignada:</strong> ${formatDateTime(item.assigned_at)}</span>`;
+            }
+            if (item.due_at) {
+                const isOverdue = new Date(item.due_at).getTime() < Date.now();
+                datesHTML += `<span class="note-view-date-chip ${isOverdue ? 'urgent' : ''}">⏰ <strong>Entrega:</strong> ${formatDateTime(item.due_at)}${isOverdue ? ' ⚠️ (Vencida)' : ''}</span>`;
+            }
+            datesCard.innerHTML = datesHTML;
+            datesCard.style.display = 'flex';
+        } else {
+            datesCard.innerHTML = '';
+            datesCard.style.display = 'none';
+        }
+
+        // Subtareas
+        subtasksCard.style.display = 'none';
+        subtasksList.innerHTML = '';
+        if (item.id) {
+            fetchAPI(`/notes/${item.id}/details`).then(details => {
+                if (details && Array.isArray(details.subtasks) && details.subtasks.length > 0) {
+                    const completed = details.subtasks.filter(s => s.is_completed).length;
+                    subtasksTitle.textContent = `☑️ Subtareas (${completed}/${details.subtasks.length})`;
+                    subtasksList.innerHTML = details.subtasks.map(s => `
+                        <li class="note-view-subtask-item ${s.is_completed ? 'completed' : ''}">
+                            <span>${s.is_completed ? '✅' : '⬜'}</span>
+                            <span>${escapeHTML(s.title || '')}</span>
+                        </li>
+                    `).join('');
+                    subtasksCard.style.display = 'block';
+                }
+            }).catch(() => {});
+        }
+
+        // Contenido con formato enriquecido
+        contentEl.innerHTML = formatNoteContentHTML(item.content);
+
+        // Conteo de palabras y caracteres
+        const words = (item.content || '').trim().split(/\s+/).filter(Boolean).length;
+        const chars = (item.content || '').length;
+        statsEl.textContent = `${words} ${words === 1 ? 'palabra' : 'palabras'} · ${chars} caracteres`;
+
+        // Botón copiar al portapapeles
+        btnCopy.className = 'btn-copy-note';
+        btnCopy.innerHTML = '<span class="copy-icon">📋</span><span class="copy-label">Copiar</span>';
+        btnCopy.onclick = async () => {
+            const textToCopy = `${item.title ? item.title + '\n\n' : ''}${item.content || ''}`;
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                btnCopy.classList.add('copied');
+                btnCopy.innerHTML = '<span>✓</span><span>¡Copiado!</span>';
+                setTimeout(() => {
+                    btnCopy.classList.remove('copied');
+                    btnCopy.innerHTML = '<span class="copy-icon">📋</span><span class="copy-label">Copiar</span>';
+                }, 2000);
+            } catch {
+                const ta = document.createElement('textarea');
+                ta.value = textToCopy;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                btnCopy.classList.add('copied');
+                btnCopy.innerHTML = '<span>✓</span><span>¡Copiado!</span>';
+                setTimeout(() => {
+                    btnCopy.classList.remove('copied');
+                    btnCopy.innerHTML = '<span class="copy-icon">📋</span><span class="copy-label">Copiar</span>';
+                }, 2000);
+            }
+        };
+
+        // Botón de favorito reactivo
+        btnFav.className = `btn-view-fav ${isFav ? 'active' : ''}`;
+        btnFav.innerHTML = isFav ? '★ Favorita' : '☆ Marcar favorita';
+        btnFav.onclick = async () => {
+            const nextFav = !(item.is_favorite === 1 || item.is_favorite === true);
+            const updated = await fetchAPI(`/notes/${item.id}/favorite?is_favorite=${nextFav}`, 'PUT');
+            if (updated) {
+                item.is_favorite = nextFav ? 1 : 0;
+                const nowFav = item.is_favorite === 1;
+                btnFav.className = `btn-view-fav ${nowFav ? 'active' : ''}`;
+                btnFav.innerHTML = nowFav ? '★ Favorita' : '☆ Marcar favorita';
+                favPillEl.style.display = nowFav ? 'inline-flex' : 'none';
+                loadCurrentView();
+            } else {
+                alert(lastAPIError || 'No se pudo actualizar favoritos.');
+            }
+        };
+
+        // Botón eliminar / restaurar
+        if (isTrash) {
+            btnDelete.className = 'btn-view-fav';
+            btnDelete.innerHTML = '🔄 Restaurar';
+            btnDelete.onclick = async () => {
+                const restored = await fetchAPI(`/notes/${item.id}/trash?is_trash=false`, 'PUT');
+                if (restored) {
+                    closeNoteDetailModal();
+                    loadCurrentView();
+                } else {
+                    alert(lastAPIError || 'No se pudo restaurar la nota.');
+                }
+            };
+        } else {
+            btnDelete.className = 'btn-view-delete';
+            btnDelete.innerHTML = '🗑️ Mover a papelera';
+            btnDelete.onclick = async () => {
+                const moved = await fetchAPI(`/notes/${item.id}/trash?is_trash=true`, 'PUT');
+                if (moved) {
+                    closeNoteDetailModal();
+                    loadCurrentView();
+                } else {
+                    alert(lastAPIError || 'No se pudo mover la nota a la papelera.');
+                }
+            };
+        }
+
+        btnDone.onclick = closeNoteDetailModal;
+        btnClose.onclick = closeNoteDetailModal;
+
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
     }
 
     // Renderizar carpetas / materias

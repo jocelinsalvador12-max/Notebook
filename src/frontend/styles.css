@@ -602,6 +602,7 @@ body {
     transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
     position: relative;
     overflow: hidden;
+    cursor: pointer;
 }
 
 .note-card:hover {
@@ -1050,6 +1051,14 @@ body {
     align-items: center;
     box-shadow: var(--shadow-sm);
     border: 1px solid #ECECF2;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, border-color 0.2s;
+}
+
+.trash-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    border-color: #DEC6F5;
 }
 
 .trash-card-info h3 {
@@ -1609,6 +1618,455 @@ body {
     color: var(--text-muted);
     margin-top: 40px;
     grid-column: 1 / -1;
+}
+
+/* =========================================================
+   MODAL DE VISUALIZACIÓN DETALLADA DE NOTA ("Ver contenido")
+   ========================================================= */
+.card-expand-hint {
+    font-size: 11px;
+    font-weight: 700;
+    color: #8C65AD;
+    background: rgba(248, 243, 253, 0.9);
+    border: 1px solid rgba(220, 200, 245, 0.5);
+    padding: 3px 9px;
+    border-radius: 10px;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+    letter-spacing: 0.2px;
+}
+
+.note-card:hover .card-expand-hint {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.note-view-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(35, 18, 55, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 20px;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+}
+
+.note-view-modal.active {
+    display: flex;
+    opacity: 1;
+}
+
+.note-view-card {
+    background: #FFFFFF;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 620px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 60px rgba(65, 25, 95, 0.22), 0 8px 20px rgba(65, 25, 95, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    position: relative;
+    overflow: hidden;
+    transform: translateY(18px) scale(0.96);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.note-view-modal.active .note-view-card {
+    transform: translateY(0) scale(1);
+}
+
+/* Barra decorativa de color pastel superior */
+.note-view-accent-bar {
+    height: 6px;
+    width: 100%;
+    background: linear-gradient(90deg, #E8C0FC, #B36CE6);
+}
+
+.note-view-card.card-lavender .note-view-accent-bar { background: linear-gradient(90deg, #E8C0FC, #B36CE6); }
+.note-view-card.card-blue .note-view-accent-bar { background: linear-gradient(90deg, #A8DEFA, #2F9EE0); }
+.note-view-card.card-mint .note-view-accent-bar { background: linear-gradient(90deg, #D0F4E0, #32B36B); }
+.note-view-card.card-yellow .note-view-accent-bar { background: linear-gradient(90deg, #FCF5BF, #DEB50D); }
+.note-view-card.card-pink .note-view-accent-bar { background: linear-gradient(90deg, #FF99C8, #F85A93); }
+.note-view-card.card-peach .note-view-accent-bar { background: linear-gradient(90deg, #FFE2CC, #F59E0B); }
+
+/* Cabecera del modal */
+.note-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 22px 28px 12px;
+    gap: 12px;
+}
+
+.note-view-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.note-view-date {
+    font-size: 12px;
+    font-weight: 600;
+    color: #7D728D;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.note-view-fav-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #FFF9DB;
+    color: #8C6D05;
+    border: 1px solid #FDEE94;
+}
+
+.note-view-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-copy-note {
+    background: #F7F3FB;
+    border: 1px solid #ECE3F5;
+    border-radius: 18px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #634382;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s ease;
+}
+
+.btn-copy-note:hover {
+    background: #EFE6FA;
+    border-color: #DCC8F5;
+    color: #492869;
+    transform: translateY(-1px);
+}
+
+.btn-copy-note.copied {
+    background: #E4F9ED;
+    border-color: #B2F0CB;
+    color: #176538;
+}
+
+.note-view-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #F5F1FA;
+    border: none;
+    font-size: 20px;
+    color: #766587;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.note-view-close:hover {
+    background: #EDE4F7;
+    color: #2E1844;
+    transform: rotate(90deg);
+}
+
+/* Fila del título */
+.note-view-title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 0 28px 14px;
+}
+
+.note-view-card .title-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-top: 8px;
+    flex-shrink: 0;
+}
+
+.note-view-card.card-lavender .title-dot { background-color: #B36CE6; }
+.note-view-card.card-blue .title-dot { background-color: #2F9EE0; }
+.note-view-card.card-mint .title-dot { background-color: #32B36B; }
+.note-view-card.card-yellow .title-dot { background-color: #DEB50D; }
+.note-view-card.card-pink .title-dot { background-color: #F85A93; }
+.note-view-card.card-peach .title-dot { background-color: #DEB50D; }
+
+.note-view-card.card-lavender .category-badge { background-color: #F3DCFE; color: #58247F; }
+.note-view-card.card-blue .category-badge { background-color: #D6F1FD; color: #175479; }
+.note-view-card.card-mint .category-badge { background-color: #E2FAF0; color: #195834; }
+.note-view-card.card-yellow .category-badge { background-color: #FEF9D6; color: #695604; }
+.note-view-card.card-pink .category-badge { background-color: #FFD4E7; color: #7B193F; }
+.note-view-card.card-peach .category-badge { background-color: #FEF9D6; color: #695604; }
+
+.note-view-title {
+    font-size: 23px;
+    font-weight: 700;
+    color: #271C35;
+    margin: 0;
+    line-height: 1.3;
+    font-family: 'Fredoka', 'Plus Jakarta Sans', sans-serif;
+    word-break: break-word;
+}
+
+/* Tarjeta de fechas (asignación y entrega) */
+.note-view-dates-card {
+    margin: 0 28px 14px;
+    background: #FAF7FD;
+    border: 1px solid #ECE3F5;
+    border-radius: 14px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.note-view-date-chip {
+    font-size: 12px;
+    font-weight: 500;
+    color: #4F455A;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.note-view-date-chip strong {
+    font-weight: 700;
+    color: #352A42;
+}
+
+.note-view-date-chip.urgent {
+    color: #C5221F;
+    font-weight: 700;
+    background: #FEE8E7;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+/* Subtareas */
+.note-view-subtasks-card {
+    margin: 0 28px 14px;
+    background: #FAF7FD;
+    border: 1px solid #ECE3F5;
+    border-radius: 14px;
+    padding: 12px 16px;
+}
+
+.note-view-subtasks-title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: #6C4B8C;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.note-view-subtasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.note-view-subtask-item {
+    font-size: 13px;
+    color: #3C2E4D;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.note-view-subtask-item.completed {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+/* Cuerpo del contenido */
+.note-view-body-wrapper {
+    padding: 0 28px;
+    flex: 1;
+    min-height: 120px;
+    max-height: 48vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #D8BFF0 transparent;
+}
+
+.note-view-body-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+.note-view-body-wrapper::-webkit-scrollbar-thumb {
+    background: #D8BFF0;
+    border-radius: 10px;
+}
+
+.note-view-content {
+    background: #FAF9FE;
+    border: 1px solid #EFEAF7;
+    border-radius: 16px;
+    padding: 20px 22px;
+    font-size: 15px;
+    line-height: 1.75;
+    color: #342844;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.note-view-content a {
+    color: #7942B5;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.note-view-empty-content {
+    color: #8C829B;
+    font-style: italic;
+    margin: 0;
+}
+
+/* Pie del modal */
+.note-view-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 28px 20px;
+    background: #FFFFFF;
+    border-top: 1px solid #F0EAF7;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.note-view-stats {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #8E829E;
+}
+
+.note-view-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-view-fav {
+    background: #FFF8E6;
+    border: 1px solid #FFE9AD;
+    color: #926A04;
+    font-weight: 600;
+    font-size: 12.5px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-view-fav:hover {
+    background: #FFF1CC;
+    border-color: #FEDD85;
+}
+
+.btn-view-fav.active {
+    background: #FEF08A;
+    border-color: #FACC15;
+    color: #713F12;
+}
+
+.btn-view-delete {
+    background: #FFF1F2;
+    border: 1px solid #FEE2E2;
+    color: #991B1B;
+    font-weight: 600;
+    font-size: 12.5px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-view-delete:hover {
+    background: #FEE2E2;
+}
+
+.btn-view-done {
+    background: #8050A5;
+    color: #FFFFFF;
+    border: none;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 8px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(128, 80, 165, 0.25);
+}
+
+.btn-view-done:hover {
+    background: #6D3D92;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(128, 80, 165, 0.35);
+}
+
+@media (max-width: 640px) {
+    .note-view-card {
+        max-height: 92vh;
+        border-radius: 20px;
+    }
+    .note-view-header,
+    .note-view-title-row,
+    .note-view-body-wrapper,
+    .note-view-footer {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+    .note-view-dates-card,
+    .note-view-subtasks-card {
+        margin-left: 18px;
+        margin-right: 18px;
+    }
+    .note-view-title {
+        font-size: 20px;
+    }
+    .note-view-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .note-view-footer-actions {
+        justify-content: flex-end;
+    }
 }
 
 /* =========================================================
