@@ -3,6 +3,9 @@ const cors = require('cors');
 const path = require('path');
 const { createClient } = require('@libsql/client');
 const { Client, Account, ID } = require('node-appwrite');
+
+// Cargar variables de entorno desde la raíz del proyecto y el directorio actual
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 require('dotenv').config();
 
 const app = express();
@@ -22,9 +25,10 @@ app.use(express.static(__dirname));
 
 // ──────────────────────────────────────────────
 // Configuración de Appwrite
+// Soporta nombres estándar y con prefijo NEXT_PUBLIC_ / VITE_
 // ──────────────────────────────────────────────
-const APPWRITE_ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
-const APPWRITE_PROJECT_ID = process.env.APPWRITE_PROJECT_ID || process.env.APPWRITE_PROJECT || process.env.VITE_APPWRITE_PROJECT_ID || '';
+const APPWRITE_ENDPOINT = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+const APPWRITE_PROJECT_ID = process.env.APPWRITE_PROJECT_ID || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || process.env.APPWRITE_PROJECT || process.env.VITE_APPWRITE_PROJECT_ID || '';
 const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY || '';
 
 const SESSION_COOKIE = 'notebook_session';
@@ -32,11 +36,15 @@ const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 días
 
 // Obtener origen dinámicamente para soportar local y Vercel sin rutas rotas ni CORS
 function getAppOrigin(req) {
+    const host = req.headers['x-forwarded-host'] || req.headers.host || req.get('host') || '';
+    const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+    // En local, respetar el host y puerto de la petición actual
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+        return `${proto}://${host}`.replace(/\/+$/, '');
+    }
     const envUrl = process.env.PUBLIC_URL || process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL;
     if (envUrl) return envUrl.replace(/\/+$/, '');
     if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`.replace(/\/+$/, '');
-    const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
-    const host = req.headers['x-forwarded-host'] || req.headers.host || req.get('host');
     if (host) return `${proto}://${host}`.replace(/\/+$/, '');
     return 'http://localhost:5080';
 }
@@ -80,6 +88,42 @@ function createAppwriteClient(sessionToken = null) {
         client.setSession(sessionToken);
     }
     return client;
+}
+
+// Crear sesión en Appwrite extrayendo de forma segura el token devuelto en los headers
+async function createAppwriteEmailSession(email, password) {
+    const response = await fetch(`${APPWRITE_ENDPOINT}/account/sessions/email`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Appwrite-Project': APPWRITE_PROJECT_ID
+        },
+        body: JSON.stringify({ email, password })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.message || 'Error al autenticar en Appwrite.');
+    }
+    let sessionToken = '';
+    const fallbackHeader = response.headers.get('x-fallback-cookies');
+    if (fallbackHeader) {
+        try {
+            const fallback = JSON.parse(fallbackHeader);
+            const key = Object.keys(fallback).find(k => k.startsWith('a_session_'));
+            if (key) sessionToken = fallback[key];
+        } catch {}
+    }
+    if (!sessionToken && typeof response.headers.getSetCookie === 'function') {
+        const cookies = response.headers.getSetCookie();
+        for (const c of cookies) {
+            const match = c.match(/a_session_[^=]+=([^;]+)/);
+            if (match) {
+                sessionToken = match[1];
+                break;
+            }
+        }
+    }
+    return { session: data, token: sessionToken || data.secret || '' };
 }
 
 const sessionCache = new Map();
@@ -277,10 +321,10 @@ app.post('/api/register', async (req, res) => {
         const user = await account.create(ID.unique(), email, password, username);
 
         // 2. Iniciar sesión automáticamente en Appwrite
-        const session = await account.createEmailPasswordSession(email, password);
+        const { session, token } = await createAppwriteEmailSession(email, password);
 
         // 3. Crear cliente con sesión para disparar verificación de correo
-        const sessionClient = createAppwriteClient(session.secret);
+        const sessionClient = createAppwriteClient(token);
         const sessionAccount = new Account(sessionClient);
 
         // URL de confirmación dinámica para evitar CORS y rutas rotas (local y Vercel)
@@ -304,7 +348,7 @@ app.post('/api/register', async (req, res) => {
         }
 
         // 5. Guardar sesión en cookie httpOnly segura
-        setSessionCookie(req, res, session.secret);
+        setSessionCookie(req, res, token);
 
         res.status(201).json({
             success: true,
@@ -359,10 +403,10 @@ app.post('/api/login', async (req, res) => {
         const account = new Account(client);
 
         // 1. Autenticar con Appwrite
-        const session = await account.createEmailPasswordSession(email, password);
+        const { session, token } = await createAppwriteEmailSession(email, password);
 
         // 2. Obtener datos del usuario con la sesión creada
-        const sessionClient = createAppwriteClient(session.secret);
+        const sessionClient = createAppwriteClient(token);
         const sessionAccount = new Account(sessionClient);
         const user = await sessionAccount.get();
 
@@ -381,7 +425,7 @@ app.post('/api/login', async (req, res) => {
         }
 
         // 4. Guardar la sesión en una cookie httpOnly segura
-        setSessionCookie(req, res, session.secret);
+        setSessionCookie(req, res, token);
 
         res.status(200).json({
             success: true,
