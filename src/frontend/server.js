@@ -1,17 +1,111 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { createClient } = require('@libsql/client');
-const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
+const { Client, Account, ID } = require('node-appwrite');
 require('dotenv').config();
 
 const app = express();
-app.use(cors({ origin: '*' }));
+
+// Configuración CORS dinámica y segura para cookies httpOnly
+app.use(cors({
+    origin: (origin, callback) => callback(null, true),
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Appwrite-Session', 'X-Workspace-Id']
+}));
 app.use(express.json());
 
+// Servir archivos estáticos del frontend si se ejecuta el servidor directamente
+app.use(express.static(path.join(__dirname, '..', '..', 'dist')));
+app.use(express.static(__dirname));
+
 // ──────────────────────────────────────────────
-// Conexión a Turso (segura: no lanza excepciones
-// a nivel de módulo para que Vercel pueda cargarlo)
+// Configuración de Appwrite
+// ──────────────────────────────────────────────
+const APPWRITE_ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+const APPWRITE_PROJECT_ID = process.env.APPWRITE_PROJECT_ID || process.env.APPWRITE_PROJECT || process.env.VITE_APPWRITE_PROJECT_ID || '';
+const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY || '';
+
+const SESSION_COOKIE = 'notebook_session';
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 días
+
+// Obtener origen dinámicamente para soportar local y Vercel sin rutas rotas ni CORS
+function getAppOrigin(req) {
+    const envUrl = process.env.PUBLIC_URL || process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL;
+    if (envUrl) return envUrl.replace(/\/+$/, '');
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`.replace(/\/+$/, '');
+    const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+    const host = req.headers['x-forwarded-host'] || req.headers.host || req.get('host');
+    if (host) return `${proto}://${host}`.replace(/\/+$/, '');
+    return 'http://localhost:5080';
+}
+
+function setSessionCookie(req, res, sessionSecret, maxAge = SESSION_MAX_AGE_SECONDS) {
+    const isHttps = req.secure || req.get('x-forwarded-proto') === 'https';
+    const expires = maxAge > 0 ? new Date(Date.now() + maxAge * 1000).toUTCString() : new Date(0).toUTCString();
+    const secureFlag = isHttps ? '; Secure' : '';
+    res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(sessionSecret)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Expires=${expires}${secureFlag}`);
+}
+
+function clearSessionCookie(req, res) {
+    setSessionCookie(req, res, '', 0);
+}
+
+function getSessionToken(req) {
+    const cookieHeader = req.headers.cookie || '';
+    const cookies = cookieHeader.split(';').map(v => v.trim());
+    const match = cookies.find(v => v.startsWith(`${SESSION_COOKIE}=`));
+    if (match) {
+        const val = match.slice(SESSION_COOKIE.length + 1).trim();
+        if (val) return decodeURIComponent(val);
+    }
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+        return authHeader.slice(7).trim();
+    }
+    const headerToken = req.headers['x-appwrite-session'];
+    if (headerToken) return String(headerToken).trim();
+    return null;
+}
+
+function createAppwriteClient(sessionToken = null) {
+    if (!APPWRITE_PROJECT_ID) {
+        throw new Error('APPWRITE_PROJECT_ID no está configurado en las variables de entorno.');
+    }
+    const client = new Client()
+        .setEndpoint(APPWRITE_ENDPOINT)
+        .setProject(APPWRITE_PROJECT_ID);
+    if (sessionToken) {
+        client.setSession(sessionToken);
+    }
+    return client;
+}
+
+const sessionCache = new Map();
+const SESSION_CACHE_TTL_MS = 60 * 1000;
+
+async function verifyAppwriteSession(sessionToken) {
+    if (!sessionToken) return null;
+    const cached = sessionCache.get(sessionToken);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.user;
+    }
+    const client = createAppwriteClient(sessionToken);
+    const account = new Account(client);
+    const user = await account.get();
+    if (user && user.$id) {
+        sessionCache.set(sessionToken, {
+            user,
+            expiresAt: Date.now() + SESSION_CACHE_TTL_MS
+        });
+        return user;
+    }
+    return null;
+}
+
+// ──────────────────────────────────────────────
+// Conexión a Turso (libSQL)
 // ──────────────────────────────────────────────
 const db = (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN)
     ? createClient({
@@ -19,6 +113,7 @@ const db = (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN)
         authToken: process.env.TURSO_AUTH_TOKEN
     })
     : null;
+
 let subtasksNoteIdColumns = ['nota_id'];
 let remindersNoteIdColumns = ['nota_id'];
 let reminderAtColumns = ['reminder_at'];
@@ -28,12 +123,9 @@ let categoryNameColumn = 'name';
 let categoryColorColumn = 'color';
 let categoryIconColumn = 'icon';
 
-// Inicializar esquema (agregar columnas si no existen)
+// Inicializar esquema en Turso
 async function initializeWorkspaceSchema() {
-    if (!db) return; // nada que hacer si no hay DB
-    // La app puede desplegarse contra una base Turso recién creada. Crear las
-    // tablas base antes de ejecutar PRAGMA/ALTER TABLE evita que el arranque
-    // falle con "no such table".
+    if (!db) return;
     await db.execute(`CREATE TABLE IF NOT EXISTS Notas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -71,14 +163,25 @@ async function initializeWorkspaceSchema() {
         SELECT id, title, content, color, owner_id FROM Notas WHERE is_favorite = 1`);
     await db.execute(`INSERT OR REPLACE INTO Papelera (id, title, content, color, owner_id)
         SELECT id, title, content, color, owner_id FROM Notas WHERE in_trash = 1`);
+
+    // Tabla Usuarios en Turso vinculada a Appwrite por appwrite_id
     await db.execute(`CREATE TABLE IF NOT EXISTS Usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        appwrite_id TEXT,
         username TEXT NOT NULL,
         email TEXT NOT NULL,
-        password_hash TEXT NOT NULL
+        password_hash TEXT NOT NULL DEFAULT '',
+        created_at TEXT DEFAULT (datetime('now'))
     )`);
+    const userColumns = await db.execute('PRAGMA table_info(Usuarios)');
+    const userColNames = userColumns.rows.map(column => column.name);
+    if (!userColNames.includes('appwrite_id')) {
+        await db.execute('ALTER TABLE Usuarios ADD COLUMN appwrite_id TEXT');
+    }
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS Usuarios_appwrite_id_unique ON Usuarios (appwrite_id)');
     await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS Usuarios_username_unique ON Usuarios (lower(username))');
     await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS Usuarios_email_unique ON Usuarios (lower(email))');
+
     for (const table of ['Notas', 'Categorias']) {
         const columns = await db.execute(`PRAGMA table_info(${table})`);
         if (!columns.rows.some(column => column.name === 'owner_id')) {
@@ -94,6 +197,7 @@ async function initializeWorkspaceSchema() {
     if (!categoryColumnNames.some(column => ['name', 'nombre', 'nombre_categoria', 'folder_name'].includes(column))) await db.execute('ALTER TABLE Categorias ADD COLUMN name TEXT');
     if (!categoryColumnNames.includes(categoryColorColumn)) await db.execute('ALTER TABLE Categorias ADD COLUMN color TEXT');
     if (!categoryColumnNames.includes(categoryIconColumn)) await db.execute('ALTER TABLE Categorias ADD COLUMN icon TEXT');
+
     await db.execute(`CREATE TABLE IF NOT EXISTS Subtareas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nota_id INTEGER NOT NULL,
@@ -118,8 +222,6 @@ async function initializeWorkspaceSchema() {
     const subtaskColumnNames = subtaskColumns.rows.map(column => column.name);
     subtasksNoteIdColumns = ['nota_id', 'note_id'].filter(column => subtaskColumnNames.includes(column));
     if (subtasksNoteIdColumns.length === 0) {
-        // Bases antiguas pueden tener la tabla vacía de vínculo por diferencias
-        // entre versiones del esquema. Agregar la columna sin tocar sus datos.
         await db.execute('ALTER TABLE Subtareas ADD COLUMN nota_id INTEGER');
         subtasksNoteIdColumns = ['nota_id'];
     }
@@ -149,126 +251,234 @@ async function initializeWorkspaceSchema() {
 
 const workspaceSchemaReady = initializeWorkspaceSchema();
 
-const SESSION_COOKIE = 'notebook_session';
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
-function sessionSecret() {
-    return process.env.SESSION_SECRET || '';
-}
-function signSession(user) {
-    const payload = Buffer.from(JSON.stringify({ id: user.id, exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS })).toString('base64url');
-    const signature = crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
-    return `${payload}.${signature}`;
-}
-function readSession(req) {
-    const cookieHeader = req.headers.cookie || '';
-    const token = cookieHeader.split(';').map(value => value.trim()).find(value => value.startsWith(`${SESSION_COOKIE}=`))?.slice(SESSION_COOKIE.length + 1);
-    if (!token || !sessionSecret()) return null;
-    const [payload, signature] = token.split('.');
-    if (!payload || !signature) return null;
-    const expected = crypto.createHmac('sha256', sessionSecret()).update(payload).digest();
-    let supplied;
-    try { supplied = Buffer.from(signature, 'base64url'); } catch { return null; }
-    if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return null;
-    try {
-        const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-        return Number.isInteger(session.id) && session.exp > Math.floor(Date.now() / 1000) ? session : null;
-    } catch { return null; }
-}
-function setSessionCookie(req, res, value, maxAge = SESSION_MAX_AGE_SECONDS) {
-    const secure = req.secure || req.get('x-forwarded-proto') === 'https';
-    res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${value}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`);
-}
-
 // ==========================================
-// RUTAS DE AUTENTICACIÓN (Registro y Login)
+// RUTAS DE AUTENTICACIÓN (Appwrite Auth)
 // ==========================================
 
+// POST: Registro de usuario en Appwrite Auth + envío de correo de verificación
 app.post('/api/register', async (req, res) => {
     const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    if (!username || username.length > 50 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8 || password.length > 72) {
-        return res.status(400).json({ success: false, error: 'Ingresa un usuario, correo válido y una contraseña de 8 a 72 caracteres.' });
-    }
-    if (!db) return res.status(503).json({ success: false, error: 'La base de datos no está configurada.' });
-    if (!sessionSecret()) return res.status(503).json({ success: false, error: 'El servidor no tiene SESSION_SECRET configurado.' });
-    try {
-        await workspaceSchemaReady;
-        const password_hash = await bcrypt.hash(password, 12);
 
-        const result = await db.execute({
-            sql: 'INSERT INTO Usuarios (username, email, password_hash) VALUES (?, ?, ?)',
-            args: [username, email, password_hash]
-        });
-        const user = { id: Number(result.lastInsertRowid), username, email };
-        setSessionCookie(req, res, signSession(user));
-        res.status(201).json({ success: true, message: '¡Usuario registrado con éxito!', user });
-    } catch (error) {
-        console.error("Error al registrar:", error);
-        if (String(error.message || '').includes('UNIQUE constraint failed')) {
-            return res.status(409).json({ success: false, error: 'Ese usuario o correo ya está registrado.' });
+    if (!username || username.length > 50 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8 || password.length > 72) {
+        return res.status(400).json({ success: false, error: 'Ingresa un usuario válido, correo electrónico y una contraseña de al menos 8 caracteres.' });
+    }
+
+    if (!APPWRITE_PROJECT_ID) {
+        return res.status(503).json({ success: false, error: 'La autenticación no está configurada (falta APPWRITE_PROJECT_ID).' });
+    }
+
+    try {
+        const client = createAppwriteClient();
+        const account = new Account(client);
+
+        // 1. Crear usuario en Appwrite Auth (Account)
+        const user = await account.create(ID.unique(), email, password, username);
+
+        // 2. Iniciar sesión automáticamente en Appwrite
+        const session = await account.createEmailPasswordSession(email, password);
+
+        // 3. Crear cliente con sesión para disparar verificación de correo
+        const sessionClient = createAppwriteClient(session.secret);
+        const sessionAccount = new Account(sessionClient);
+
+        // URL de confirmación dinámica para evitar CORS y rutas rotas (local y Vercel)
+        const confirmationUrl = `${getAppOrigin(req)}/verify.html`;
+        let verificationSent = false;
+        try {
+            await sessionAccount.createVerification(confirmationUrl);
+            verificationSent = true;
+        } catch (verifErr) {
+            console.error('Aviso: no se pudo enviar correo de verificación:', verifErr.message);
         }
-        res.status(500).json({ success: false, error: 'No se pudo completar el registro.' });
+
+        // 4. Registrar o vincular user.$id en Turso de forma segura (INSERT OR IGNORE)
+        if (db) {
+            await workspaceSchemaReady;
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO Usuarios (appwrite_id, username, email, password_hash, created_at)
+                      VALUES (?, ?, ?, '', datetime('now'))`,
+                args: [user.$id, username, email]
+            });
+        }
+
+        // 5. Guardar sesión en cookie httpOnly segura
+        setSessionCookie(req, res, session.secret);
+
+        res.status(201).json({
+            success: true,
+            message: verificationSent
+                ? '¡Cuenta creada! Te hemos enviado un correo de verificación. Revisa tu bandeja de entrada.'
+                : '¡Cuenta creada con éxito!',
+            verificationSent,
+            user: { id: user.$id, username: user.name || username, email: user.email }
+        });
+    } catch (error) {
+        console.error('Error al registrar en Appwrite:', error);
+        const msg = String(error.message || '');
+        if (msg.includes('already exists') || error.code === 409) {
+            return res.status(409).json({ success: false, error: 'Ese correo ya está registrado.' });
+        }
+        res.status(error.code && error.code >= 400 && error.code < 500 ? error.code : 500).json({
+            success: false,
+            error: error.message || 'No se pudo completar el registro.'
+        });
     }
 });
 
+// POST: Inicio de sesión con Appwrite + guardado en cookie httpOnly
 app.post('/api/login', async (req, res) => {
-    const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
+    const identifier = typeof req.body?.username === 'string' ? req.body.username.trim() : (typeof req.body?.email === 'string' ? req.body.email.trim() : '');
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    if (!username || !password) return res.status(400).json({ success: false, error: 'Ingresa tu usuario y contraseña.' });
-    if (!db) return res.status(503).json({ success: false, error: 'La base de datos no está configurada.' });
-    if (!sessionSecret()) return res.status(503).json({ success: false, error: 'El servidor no tiene SESSION_SECRET configurado.' });
+
+    if (!identifier || !password) {
+        return res.status(400).json({ success: false, error: 'Ingresa tu usuario o correo electrónico y contraseña.' });
+    }
+
+    if (!APPWRITE_PROJECT_ID) {
+        return res.status(503).json({ success: false, error: 'La autenticación no está configurada (falta APPWRITE_PROJECT_ID).' });
+    }
+
     try {
-        await workspaceSchemaReady;
-        const result = await db.execute({
-            sql: 'SELECT id, username, email, password_hash FROM Usuarios WHERE lower(username) = lower(?) LIMIT 1',
-            args: [username]
-        });
+        let email = identifier.toLowerCase();
 
-        if (result.rows.length === 0) {
-            return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos.' });
+        // Si el usuario ingresó un nombre de usuario en lugar de correo, buscar su correo en Turso
+        if (!email.includes('@') && db) {
+            await workspaceSchemaReady;
+            const userRow = await db.execute({
+                sql: 'SELECT email FROM Usuarios WHERE lower(username) = lower(?) LIMIT 1',
+                args: [identifier]
+            });
+            if (userRow.rows.length > 0 && userRow.rows[0].email) {
+                email = String(userRow.rows[0].email).toLowerCase();
+            }
         }
 
-        const user = result.rows[0];
-        const match = await bcrypt.compare(password, user.password_hash);
+        const client = createAppwriteClient();
+        const account = new Account(client);
 
-        if (!match) {
-            return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos.' });
+        // 1. Autenticar con Appwrite
+        const session = await account.createEmailPasswordSession(email, password);
+
+        // 2. Obtener datos del usuario con la sesión creada
+        const sessionClient = createAppwriteClient(session.secret);
+        const sessionAccount = new Account(sessionClient);
+        const user = await sessionAccount.get();
+
+        // 3. Registrar o vincular user.$id en Turso (INSERT OR IGNORE)
+        if (db) {
+            await workspaceSchemaReady;
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO Usuarios (appwrite_id, username, email, password_hash, created_at)
+                      VALUES (?, ?, ?, '', datetime('now'))`,
+                args: [user.$id, user.name || identifier, user.email]
+            });
+            await db.execute({
+                sql: `UPDATE Usuarios SET appwrite_id = ? WHERE lower(email) = lower(?) AND (appwrite_id IS NULL OR appwrite_id = '')`,
+                args: [user.$id, user.email]
+            });
         }
 
-        setSessionCookie(req, res, signSession(user));
+        // 4. Guardar la sesión en una cookie httpOnly segura
+        setSessionCookie(req, res, session.secret);
+
         res.status(200).json({
             success: true,
             message: 'Inicio de sesión exitoso',
-            user: { id: user.id, username: user.username, email: user.email }
+            user: { id: user.$id, username: user.name || identifier, email: user.email }
         });
     } catch (error) {
-        console.error("Error al iniciar sesión:", error);
-        res.status(500).json({ success: false, error: "Error en el servidor." });
+        console.error('Error al iniciar sesión:', error);
+        res.status(401).json({
+            success: false,
+            error: 'Usuario o contraseña incorrectos, o sesión rechazada.'
+        });
     }
 });
 
+// GET: Consultar sesión activa verificada por Appwrite
 app.get('/api/session', async (req, res) => {
-    if (!db || !sessionSecret()) return res.status(503).json({ success: false, error: 'La autenticación no está configurada.' });
-    const session = readSession(req);
-    if (!session) return res.status(401).json({ success: false, error: 'La sesión no es válida.' });
+    const token = getSessionToken(req);
+    if (!token) return res.status(401).json({ success: false, error: 'No hay sesión activa.' });
+
     try {
-        const result = await db.execute({ sql: 'SELECT id, username, email FROM Usuarios WHERE id = ? LIMIT 1', args: [session.id] });
-        if (!result.rows[0]) return res.status(401).json({ success: false, error: 'La sesión no es válida.' });
-        res.json({ success: true, user: result.rows[0] });
+        const user = await verifyAppwriteSession(token);
+        if (!user || !user.$id) {
+            clearSessionCookie(req, res);
+            return res.status(401).json({ success: false, error: 'La sesión no es válida o expiró.' });
+        }
+        res.json({
+            success: true,
+            user: {
+                id: user.$id,
+                username: user.name || user.email.split('@')[0],
+                email: user.email,
+                emailVerification: user.emailVerification
+            }
+        });
     } catch (error) {
-        console.error('Error al consultar la sesión:', error);
-        res.status(500).json({ success: false, error: 'No se pudo consultar la sesión.' });
+        console.error('Error al consultar sesión:', error);
+        clearSessionCookie(req, res);
+        res.status(401).json({ success: false, error: 'La sesión no es válida.' });
     }
 });
 
-app.post('/api/logout', (req, res) => {
-    setSessionCookie(req, res, '', 0);
-    res.json({ success: true });
+// POST: Cerrar sesión
+app.post('/api/logout', async (req, res) => {
+    const token = getSessionToken(req);
+    if (token) {
+        sessionCache.delete(token);
+        try {
+            if (APPWRITE_PROJECT_ID) {
+                const client = createAppwriteClient(token);
+                const account = new Account(client);
+                await account.deleteSession('current').catch(() => {});
+            }
+        } catch {}
+    }
+    clearSessionCookie(req, res);
+    res.json({ success: true, message: 'Sesión cerrada correctamente.' });
+});
+
+// POST: Confirmar verificación de correo en Appwrite Auth
+app.post('/api/verify', async (req, res) => {
+    const userId = typeof req.body?.userId === 'string' ? req.body.userId.trim() : '';
+    const secret = typeof req.body?.secret === 'string' ? req.body.secret.trim() : '';
+
+    if (!userId || !secret) {
+        return res.status(400).json({ success: false, error: 'Parámetros incompletos (se requiere userId y secret).' });
+    }
+
+    try {
+        const client = createAppwriteClient();
+        const account = new Account(client);
+        await account.updateVerification(userId, secret);
+        res.json({ success: true, message: '¡Correo verificado con éxito!' });
+    } catch (error) {
+        console.error('Error al verificar correo:', error);
+        res.status(400).json({ success: false, error: error.message || 'El enlace de verificación expiró o no es válido.' });
+    }
+});
+
+// POST: Reenviar correo de verificación
+app.post('/api/resend-verification', async (req, res) => {
+    const token = getSessionToken(req);
+    if (!token) return res.status(401).json({ success: false, error: 'Inicia sesión para reenviar la verificación.' });
+
+    try {
+        const client = createAppwriteClient(token);
+        const account = new Account(client);
+        const confirmationUrl = `${getAppOrigin(req)}/verify.html`;
+        await account.createVerification(confirmationUrl);
+        res.json({ success: true, message: 'Correo de verificación reenviado.' });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message || 'No se pudo reenviar el correo.' });
+    }
 });
 
 // ──────────────────────────────────────────────
-// Middleware 1: verificar que la DB está configurada
+// Middleware: verificar configuración de DB en Turso
 // ──────────────────────────────────────────────
 app.use('/api', (req, res, next) => {
     if (!db) {
@@ -278,7 +488,8 @@ app.use('/api', (req, res, next) => {
 });
 
 // ──────────────────────────────────────────────
-// Middleware 2: esperar esquema y validar workspace
+// Middleware: autenticación en el servidor (node-appwrite)
+// y vinculación de datos por user.$id (TEXT) en Turso
 // ──────────────────────────────────────────────
 app.use('/api', async (req, res, next) => {
     try {
@@ -287,12 +498,43 @@ app.use('/api', async (req, res, next) => {
         console.error('No se pudo preparar la base de datos:', error);
         return res.status(500).json({ error: 'No se pudo preparar la base de datos.' });
     }
-    const workspaceId = String(req.get('X-Workspace-Id') || '');
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(workspaceId)) {
-        return res.status(400).json({ error: 'No se encontró el espacio de trabajo del navegador.' });
+
+    const token = getSessionToken(req);
+    if (!token) {
+        return res.status(401).json({ success: false, error: 'Sesión requerida. Por favor, inicia sesión.' });
     }
-    req.workspaceId = workspaceId;
-    next();
+
+    try {
+        const user = await verifyAppwriteSession(token);
+        if (!user || !user.$id) {
+            clearSessionCookie(req, res);
+            return res.status(401).json({ success: false, error: 'Sesión no válida o expirada. Inicia sesión nuevamente.' });
+        }
+
+        req.user = user;
+        req.userId = user.$id;
+        // Vinculación estricta de registros de negocio por user.$id (TEXT) en Turso
+        req.workspaceId = user.$id;
+
+        // Migración transparente de notas creadas en sesión previa de navegador si aplica
+        const browserWorkspaceId = req.get('X-Workspace-Id');
+        if (browserWorkspaceId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(browserWorkspaceId)) {
+            db.execute({
+                sql: 'UPDATE Notas SET owner_id = ? WHERE owner_id = ?',
+                args: [user.$id, browserWorkspaceId]
+            }).catch(() => {});
+            db.execute({
+                sql: 'UPDATE Categorias SET owner_id = ? WHERE owner_id = ?',
+                args: [user.$id, browserWorkspaceId]
+            }).catch(() => {});
+        }
+
+        next();
+    } catch (error) {
+        console.error('Error al verificar sesión con Appwrite:', error.message);
+        clearSessionCookie(req, res);
+        return res.status(401).json({ success: false, error: error.message || 'No se pudo validar la sesión con Appwrite.' });
+    }
 });
 
 // GET: Obtener todas las notas activas (no en papelera)

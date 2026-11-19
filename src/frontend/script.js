@@ -25,6 +25,40 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.user-greeting').forEach(greeting => {
         greeting.textContent = `¡Hola, ${savedUsername || 'Peter'}!`;
     });
+
+    // Validar sesión con el servidor y actualizar nombre de usuario
+    fetch('/api/session', { credentials: 'same-origin' })
+        .then(res => {
+            if (res.status === 401) {
+                const currentPath = window.location.pathname;
+                const isAuthPage = currentPath.includes('/login') || currentPath.includes('/register') || currentPath.includes('/verify');
+                if (!isAuthPage) {
+                    window.location.href = './login/index.html';
+                }
+            }
+            return res.ok ? res.json() : null;
+        })
+        .then(data => {
+            if (data && data.user && data.user.username) {
+                localStorage.setItem('notebookUsername', data.user.username);
+                document.querySelectorAll('.user-greeting').forEach(greeting => {
+                    greeting.textContent = `¡Hola, ${data.user.username}!`;
+                });
+            }
+        })
+        .catch(() => {});
+
+    // Controladores de cierre de sesión
+    document.querySelectorAll('.btn-logout, [data-action="logout"]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+            } catch {}
+            localStorage.removeItem('notebookUsername');
+            window.location.href = './login/index.html';
+        });
+    });
     const folderOrder = [
         ['proyectos', 'projects'],
         ['negocios', 'business', 'trabajo'],
@@ -221,7 +255,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Workspace-Id': workspaceId
-                }
+                },
+                credentials: 'same-origin'
             };
             if (body) options.body = JSON.stringify(body);
 
@@ -230,6 +265,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const errorBody = await response.json().catch(() => ({}));
                 lastAPIError = errorBody.error || `Error del servidor (${response.status}).`;
                 console.error(`Error HTTP ${response.status} en ${endpoint}:`, lastAPIError);
+                if (response.status === 401) {
+                    const currentPath = window.location.pathname;
+                    const isAuthPage = currentPath.includes('/login') || currentPath.includes('/register') || currentPath.includes('/verify');
+                    if (!isAuthPage) {
+                        window.location.href = './login/index.html';
+                    }
+                }
                 return null;
             }
             const result = await response.json();

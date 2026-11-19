@@ -411,6 +411,25 @@ body {
     transition: background-color 0.2s;
 }
 
+.btn-logout {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6C7284;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-logout:hover {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+}
+
 .user-profile {
     position: relative;
 }

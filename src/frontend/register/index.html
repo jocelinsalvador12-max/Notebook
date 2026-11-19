@@ -64,7 +64,10 @@
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'No se pudo crear la cuenta.');
                 localStorage.setItem('notebookUsername', result.user.username);
-                window.location.href = '../app.html';
+                message.textContent = result.message || '¡Cuenta creada! Revisa tu correo de verificación.';
+                setTimeout(() => {
+                    window.location.href = '../app.html';
+                }, 1800);
             } catch (error) {
                 message.textContent = error.message || 'No se pudo conectar con el servidor.';
                 message.classList.add('is-error');

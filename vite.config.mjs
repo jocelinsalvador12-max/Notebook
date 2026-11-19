@@ -23,6 +23,7 @@ export default defineConfig({
                 landing: resolve(__dirname, 'src/frontend/index.html'),
                 login: resolve(__dirname, 'src/frontend/login/index.html'),
                 register: resolve(__dirname, 'src/frontend/register/index.html'),
+                verify: resolve(__dirname, 'src/frontend/verify.html'),
                 calendario: resolve(__dirname, 'src/frontend/calendario.html'),
                 favoritos: resolve(__dirname, 'src/frontend/favoritos.html'),
                 categorias: resolve(__dirname, 'src/frontend/categorias.html'),

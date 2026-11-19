@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#a855f7">
+    <title>Notebook - Verificación de correo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./login/login.css">
+    <style>
+        .status-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .status-icon.loading {
+            border: 4px solid #e9d5ff;
+            border-top-color: #7c3aed;
+            animation: spin 1s linear infinite;
+        }
+        .status-icon.success {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .status-icon.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .verify-box {
+            text-align: center;
+        }
+        .verify-box p {
+            margin: 12px 0 24px;
+            color: #555;
+            line-height: 1.5;
+        }
+        .action-link {
+            display: inline-block;
+            width: 100%;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 600;
+            text-align: center;
+            transition: opacity 0.2s;
+        }
+        .action-link:hover {
+            opacity: 0.95;
+        }
+    </style>
+</head>
+<body>
+    <main class="login-page">
+        <section class="login-shell" aria-labelledby="brand-name">
+            <a class="brand" href="./app.html" aria-label="Notebook, ir a la aplicación">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 32 32" fill="none"><rect x="3" y="3" width="26" height="26" rx="8" stroke="currentColor" stroke-width="2.5"/><path d="m10 21 2.1-6.1L22 5l5 5-9.9 9.9L11 22Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m18.5 8.5 5 5" stroke="currentColor" stroke-width="2"/></svg>
+                </span>
+                <span id="brand-name">Notebook</span>
+            </a>
+
+            <div class="login-card verify-box">
+                <div id="status-icon" class="status-icon loading"></div>
+                <h1 id="verify-title">Verificando correo…</h1>
+                <p id="verify-desc">Por favor espera un momento mientras confirmamos tu cuenta.</p>
+                <div id="verify-action" style="display: none;">
+                    <a id="action-btn" href="./app.html" class="action-link">Continuar a Notebook</a>
+                </div>
+            </div>
+            <p class="login-footer">Tus ideas, siempre contigo.</p>
+        </section>
+    </main>
+    <script>
+        (async () => {
+            const params = new URLSearchParams(window.location.search);
+            const userId = params.get('userId');
+            const secret = params.get('secret');
+
+            const icon = document.getElementById('status-icon');
+            const title = document.getElementById('verify-title');
+            const desc = document.getElementById('verify-desc');
+            const actionContainer = document.getElementById('verify-action');
+            const actionBtn = document.getElementById('action-btn');
+
+            if (!userId || !secret) {
+                icon.className = 'status-icon error';
+                icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+                title.textContent = 'Enlace incompleto';
+                desc.textContent = 'El enlace de verificación no contiene los parámetros necesarios.';
+                actionBtn.href = './login/index.html';
+                actionBtn.textContent = 'Ir a Iniciar sesión';
+                actionContainer.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ userId, secret })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'No se pudo verificar el correo.');
+                }
+
+                icon.className = 'status-icon success';
+                icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                title.textContent = '¡Correo verificado!';
+                desc.textContent = 'Tu cuenta ha sido verificada exitosamente. Ya puedes acceder a todas tus notas.';
+                actionBtn.href = './app.html';
+                actionBtn.textContent = 'Ir a mis notas';
+                actionContainer.style.display = 'block';
+            } catch (err) {
+                icon.className = 'status-icon error';
+                icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+                title.textContent = 'Error de verificación';
+                desc.textContent = err.message || 'El enlace de verificación ha expirado o ya fue utilizado.';
+                actionBtn.href = './login/index.html';
+                actionBtn.textContent = 'Ir a Iniciar sesión';
+                actionContainer.style.display = 'block';
+            }
+        })();
+    </script>
+</body>
+</html>
+
