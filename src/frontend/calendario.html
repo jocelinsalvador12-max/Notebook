@@ -386,13 +386,103 @@
             }
 
             .week-view {
-                overflow-x: auto;
                 flex: initial;
+                overflow: hidden;
             }
 
-            .week-header,
+            .week-header {
+                display: none;
+            }
+
             .week-body {
-                min-width: 650px;
+                display: block;
+                max-height: 62dvh;
+                padding: 8px 14px;
+            }
+
+            .week-times {
+                display: none;
+            }
+
+            .week-day-slots {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                padding: 10px 0;
+                border-left: 0;
+                border-bottom: 1px solid rgba(139,92,246,0.12);
+            }
+
+            .week-day-slots::before {
+                content: attr(data-day-label);
+                display: block;
+                margin-bottom: 6px;
+                color: #5B21B6;
+                font-size: 0.83rem;
+                font-weight: 700;
+            }
+
+            .week-hour-slot:empty {
+                display: none;
+            }
+
+            .week-hour-slot {
+                height: auto;
+                min-height: 0;
+                padding: 3px 0;
+                border-bottom: 0;
+            }
+
+            .week-hour-slot.current-hour:empty {
+                display: block;
+                height: 5px;
+                min-height: 5px;
+                padding: 0;
+                border-radius: 5px;
+            }
+
+            #view-dia > div:first-child {
+                padding: 14px 16px !important;
+            }
+
+            #day-title {
+                font-size: 1.1rem !important;
+                line-height: 1.35;
+            }
+
+            #day-body {
+                display: block !important;
+                max-height: 62dvh !important;
+                padding: 8px 14px;
+            }
+
+            #day-body > div:first-child {
+                display: none;
+            }
+
+            #day-body .day-slots-col .week-hour-slot:empty {
+                display: none;
+            }
+
+            #day-body .day-slots-col .week-hour-slot {
+                height: auto;
+                min-height: 0;
+                padding: 3px 0;
+                border-bottom: 0;
+            }
+
+            #day-body .cal-event-chip {
+                margin: 0 !important;
+                padding: 10px 12px !important;
+                font-size: 0.78rem !important;
+                white-space: normal;
+                line-height: 1.4;
+            }
+
+            .week-view .cal-event-chip {
+                padding: 9px 11px;
+                font-size: 0.75rem;
+                white-space: normal;
+                line-height: 1.4;
             }
 
             .week-day-col {
@@ -783,6 +873,7 @@
 
                 // Render slots
                 const slots = document.getElementById(`wk-slots-${id}`);
+                slots.dataset.dayLabel = `${DIAS_CORTOS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
                 slots.innerHTML = '';
                 for (let h = 0; h < 24; h++) {
                     const slot = document.createElement('div');
@@ -871,6 +962,7 @@
             const timesCol = document.createElement('div');
             timesCol.style.cssText = 'border-right:1px solid rgba(139,92,246,0.1);';
             const slotsCol = document.createElement('div');
+            slotsCol.className = 'day-slots-col';
             for (let h = 0; h < 24; h++) {
                 const lbl = document.createElement('div');
                 lbl.className = 'week-hour-label';
