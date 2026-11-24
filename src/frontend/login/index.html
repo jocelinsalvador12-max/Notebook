@@ -71,6 +71,7 @@
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'No se pudo iniciar sesión.');
                 localStorage.setItem('notebookUsername', result.user.username);
+                if (result.user.email) localStorage.setItem('notebookEmail', result.user.email);
                 window.location.href = '../app.html';
             } catch (error) {
                 message.textContent = error.message || 'No se pudo conectar con el servidor.';

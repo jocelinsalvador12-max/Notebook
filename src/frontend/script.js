@@ -22,8 +22,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch { /* La nota se guarda aunque el almacenamiento local esté lleno. */ }
     };
     const savedUsername = localStorage.getItem('notebookUsername')?.trim();
+    const savedEmail = localStorage.getItem('notebookEmail')?.trim();
     document.querySelectorAll('.user-greeting').forEach(greeting => {
         greeting.textContent = `¡Hola, ${savedUsername || 'Peter'}!`;
+    });
+    document.querySelectorAll('.sidebar-user-name').forEach(name => {
+        name.textContent = savedUsername || 'Usuario';
+    });
+    document.querySelectorAll('.sidebar-user-email').forEach(email => {
+        email.textContent = savedEmail || 'Correo electrónico';
     });
 
     // Validar sesión con el servidor y actualizar nombre de usuario
@@ -41,8 +48,15 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
             if (data && data.user && data.user.username) {
                 localStorage.setItem('notebookUsername', data.user.username);
+                if (data.user.email) localStorage.setItem('notebookEmail', data.user.email);
                 document.querySelectorAll('.user-greeting').forEach(greeting => {
                     greeting.textContent = `¡Hola, ${data.user.username}!`;
+                });
+                document.querySelectorAll('.sidebar-user-name').forEach(name => {
+                    name.textContent = data.user.username;
+                });
+                document.querySelectorAll('.sidebar-user-email').forEach(email => {
+                    email.textContent = data.user.email || 'Correo electrónico';
                 });
             }
         })
@@ -56,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
             } catch {}
             localStorage.removeItem('notebookUsername');
+            localStorage.removeItem('notebookEmail');
             window.location.href = './login/index.html';
         });
     });
