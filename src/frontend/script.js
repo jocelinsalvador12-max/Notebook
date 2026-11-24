@@ -174,8 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
                       document.querySelector('.categories-grid') ||
                       document.getElementById('trashGrid') ||
                       document.getElementById('notes-container');
-    const classNotesGrid = document.getElementById('class-notes-grid');
-    const classNotesCount = document.getElementById('class-notes-count');
 
     const searchInput = document.getElementById('search-input');
     const searchClearBtn = document.getElementById('search-clear-btn');
@@ -893,19 +891,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ]);
 
         const notesList = Array.isArray(allNotes) ? allNotes : [];
-        if (classView && classNotesGrid) {
-            const query = currentSearchQuery.trim().toLowerCase();
-            const visibleClassNotes = query
-                ? notesList.filter(note => `${note.title || ''} ${note.content || ''} ${note.category || ''}`.toLowerCase().includes(query))
-                : notesList;
-            renderNotes(visibleClassNotes, classNotesGrid);
-            if (classNotesCount) {
-                classNotesCount.textContent = `${visibleClassNotes.length} ${visibleClassNotes.length === 1 ? 'apunte' : 'apuntes'}`;
-            }
-            if (visibleClassNotes.length === 0 && !query) {
-                classNotesGrid.innerHTML = '<p class="empty-msg">Aún no tienes apuntes. Crea uno y selecciónale una clase para verlo aquí.</p>';
-            }
-        }
         const categoriesData = withPermanentFolders((Array.isArray(dbCategories) ? dbCategories : [])
             .filter(c => c && c.name)
             .map(c => ({
@@ -1033,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         visibleCategories.forEach(cat => {
             const catNameLower = cat.name.toLowerCase().trim();
-            const count = notesList.filter(n => {
+            const classNotes = notesList.filter(n => {
                 const noteCat = (n.category || 'General').toLowerCase().trim();
                 if (noteCat === catNameLower) return true;
                 if ((catNameLower === 'proyectos' || catNameLower === 'projects') && (noteCat === 'projects' || noteCat === 'proyectos')) return true;
@@ -1041,7 +1026,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (catNameLower === 'personal' && (noteCat === 'personal' || noteCat === 'casa')) return true;
                 if (catNameLower === 'general' && noteCat === 'general') return true;
                 return false;
-            }).length;
+            });
+            const count = classNotes.length;
 
             const card = document.createElement('article');
             card.className = classView ? 'category-card' : 'category-card folder-category-card';
@@ -1074,7 +1060,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-delete-folder, .btn-edit-folder, .class-note-add')) return;
+                if (e.target.closest('button')) return;
+                if (classView) {
+                    const noteList = card.querySelector('.class-note-list');
+                    if (noteList) {
+                        noteList.hidden = !noteList.hidden;
+                        card.setAttribute('aria-expanded', String(!noteList.hidden));
+                        const hint = card.querySelector('.category-open-hint');
+                        if (hint) hint.textContent = noteList.hidden ? 'Ver apuntes de la clase →' : 'Ocultar apuntes ↑';
+                    }
+                    return;
+                }
                 window.location.href = `./app.html?category=${encodeURIComponent(cat.name)}`;
             });
 
@@ -1092,6 +1088,32 @@ document.addEventListener('DOMContentLoaded', () => {
                     openModal();
                 });
                 card.appendChild(addNoteButton);
+
+                const noteList = document.createElement('div');
+                noteList.className = 'class-note-list';
+                noteList.hidden = true;
+                if (classNotes.length === 0) {
+                    noteList.innerHTML = '<p class="class-note-empty">Todavía no hay apuntes en esta clase.</p>';
+                } else {
+                    classNotes.forEach(note => {
+                        const noteRow = document.createElement('button');
+                        noteRow.type = 'button';
+                        noteRow.className = 'class-note-row';
+                        noteRow.innerHTML = `
+                            <span class="class-note-row-copy">
+                                <strong>${escapeHTML(note.title || 'Sin título')}</strong>
+                                <small>${escapeHTML(note.content || '')}</small>
+                            </span>
+                            <span class="class-note-row-arrow" aria-hidden="true">↗</span>
+                        `;
+                        noteRow.addEventListener('click', event => {
+                            event.stopPropagation();
+                            openNoteDetailModal(note);
+                        });
+                        noteList.appendChild(noteRow);
+                    });
+                }
+                card.appendChild(noteList);
             }
 
             const btnEdit = card.querySelector('.btn-edit-folder');
