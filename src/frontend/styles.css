@@ -427,23 +427,6 @@ body {
     line-height: 1;
 }
 
-.home-welcome-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0 0 0 12px;
-    color: #70428f;
-    font-size: 12px;
-    font-weight: 700;
-    text-decoration: none;
-}
-
-.home-welcome-link:hover {
-    color: #4e2c6a;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-}
-
 .home-welcome-art {
     position: relative;
     flex: 0 0 190px;
@@ -2592,12 +2575,6 @@ body {
         min-height: 36px;
         margin-top: 13px;
         padding: 7px 12px;
-        font-size: 11px;
-    }
-
-    .home-welcome-link {
-        width: fit-content;
-        margin: 11px 0 0;
         font-size: 11px;
     }
 
