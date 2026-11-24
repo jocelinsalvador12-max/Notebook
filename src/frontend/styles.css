@@ -2531,12 +2531,31 @@ body {
     }
 
     .editor-modal {
+        justify-content: flex-start;
         align-items: flex-start;
         padding: 0;
-        overflow-y: auto;
+        overflow-y: scroll;
+        scrollbar-width: thin;
+        scrollbar-color: #9b70bb rgba(128, 80, 173, .1);
+        scrollbar-gutter: stable;
         overscroll-behavior-y: contain;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-y;
+    }
+
+    .editor-modal::-webkit-scrollbar {
+        width: 9px;
+    }
+
+    .editor-modal::-webkit-scrollbar-track {
+        background: rgba(128, 80, 173, .1);
+        border-radius: 9px;
+    }
+
+    .editor-modal::-webkit-scrollbar-thumb {
+        background: #9b70bb;
+        border: 2px solid rgba(255, 255, 255, .72);
+        border-radius: 9px;
     }
 
     .editor-content {
