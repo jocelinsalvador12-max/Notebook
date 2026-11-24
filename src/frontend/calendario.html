@@ -272,48 +272,85 @@
             background: rgba(168,85,247,0.05);
         }
 
-        /* Vistas de agenda en computadora */
+        /* En computadora, Día y Semana usan la misma agenda en lista que en celular. */
         @media (min-width: 641px) {
             .week-view {
+                min-height: 0;
                 display: flex;
                 flex-direction: column;
-                min-height: 0;
+            }
+
+            .week-header,
+            .week-times {
+                display: none;
             }
 
             .week-body {
                 flex: 1;
                 min-height: 0;
-                max-height: none;
-                grid-template-columns: 68px repeat(7, minmax(0, 1fr));
-            }
-
-            .week-header {
-                grid-template-columns: 68px repeat(7, minmax(0, 1fr));
-            }
-
-            .week-hour-label,
-            .week-hour-slot {
-                height: 60px;
+                display: block;
+                max-height: 68vh;
+                padding: 12px 24px;
             }
 
             .week-day-slots {
-                min-width: 0;
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                padding: 14px 0;
+                border-left: 0;
+                border-bottom: 1px solid rgba(139,92,246,0.12);
+            }
+
+            .week-day-slots::before {
+                content: attr(data-day-label);
+                display: block;
+                margin-bottom: 8px;
+                color: #5B21B6;
+                font-size: 1rem;
+                font-weight: 700;
+            }
+
+            .week-day-slots[data-empty="true"]::after {
+                content: 'Sin eventos';
+                display: block;
+                padding: 6px 0 2px;
+                color: #9A91A5;
+                font-size: 0.9rem;
+            }
+
+            .week-hour-slot:empty {
+                display: none;
+            }
+
+            .week-hour-slot {
+                height: auto;
+                min-height: 0;
+                padding: 4px 0;
+                border-bottom: 0;
+            }
+
+            .week-hour-slot.current-hour:empty {
+                display: block;
+                height: 5px;
+                min-height: 5px;
+                padding: 0;
+                border-radius: 5px;
             }
 
             .week-view .cal-event-chip {
-                margin: 4px 5px;
-                padding: 7px 8px;
-                border-radius: 8px;
-                font-size: 0.7rem;
+                margin: 0;
+                padding: 10px 12px;
+                border-radius: 9px;
+                font-size: 0.88rem;
                 white-space: normal;
-                line-height: 1.35;
-                align-items: flex-start;
+                line-height: 1.4;
             }
 
             #view-dia {
                 display: flex;
                 flex-direction: column;
                 min-height: 0;
+                max-height: 80vh;
             }
 
             #view-dia > div:first-child {
@@ -323,35 +360,43 @@
             #day-body {
                 flex: 1;
                 min-height: 0;
-                max-height: none !important;
-                grid-template-columns: 68px minmax(0, 1fr) !important;
+                display: block !important;
+                max-height: 68vh !important;
+                padding: 12px 24px;
             }
 
-            #day-body .week-hour-label,
-            #day-body .week-hour-slot {
-                height: 60px;
+            #day-body > div:first-child {
+                display: none;
             }
 
-            #day-body .day-slots-col {
-                min-width: 0;
+            #day-body .day-slots-col .week-hour-slot:empty {
+                display: none;
+            }
+
+            #day-body .day-slots-col .week-hour-slot {
+                height: auto;
+                min-height: 0;
+                padding: 4px 0;
+                border-bottom: 0;
             }
 
             #day-body .cal-event-chip {
-                margin: 4px 10px !important;
-                padding: 9px 12px !important;
+                margin: 0 !important;
+                padding: 12px 14px !important;
                 border-radius: 9px;
-                font-size: 0.85rem !important;
+                font-size: 0.9rem !important;
                 line-height: 1.4;
                 white-space: normal;
             }
 
             #day-body .day-empty-state {
-                margin: 16px 12px;
-                padding: 14px 18px;
+                margin: 12px 0;
+                padding: 18px;
                 border-radius: 12px;
                 background: #f8f5fc;
                 color: #74677f;
                 font-size: 0.9rem;
+                text-align: center;
             }
         }
 
@@ -1035,7 +1080,7 @@
             const weekBody = document.querySelector('.week-body');
             if (weekBody) {
                 setTimeout(() => {
-                    weekBody.scrollTop = Math.max(0, (earliestEventHour - 1) * 56);
+                    weekBody.scrollTop = 0;
                 }, 50);
             }
         }
@@ -1122,7 +1167,7 @@
             body.appendChild(slotsCol);
 
             setTimeout(() => {
-                body.scrollTop = Math.max(0, (earliestEventHour - 1) * 56);
+                body.scrollTop = 0;
             }, 50);
         }
 
