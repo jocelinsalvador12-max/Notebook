@@ -1050,7 +1050,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h3 class="category-title">${escapeHTML(cat.name)}</h3>
                 <span class="category-count">${count} ${classView ? (count === 1 ? 'apunte' : 'apuntes') : (count === 1 ? 'nota guardada' : 'notas guardadas')}</span>
                 ${!classView ? '<span class="folder-card-bottom"><span>Explorar carpeta</span><b aria-hidden="true">↗</b></span>' : ''}
-                ${classView ? '<span class="category-open-hint">Ver apuntes de la clase →</span>' : ''}
             `;
 
             if (cat.id) {
@@ -1076,8 +1075,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (noteList) {
                         noteList.hidden = !noteList.hidden;
                         card.setAttribute('aria-expanded', String(!noteList.hidden));
-                        const hint = card.querySelector('.category-open-hint');
-                        if (hint) hint.textContent = noteList.hidden ? 'Ver apuntes de la clase →' : 'Ocultar apuntes ↑';
                     }
                     return;
                 }
