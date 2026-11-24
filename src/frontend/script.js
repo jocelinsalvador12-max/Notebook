@@ -1385,11 +1385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res) {
                 saveLocalCreatedAt(res.id, createdAt);
                 closeModal();
-                if (!notesGrid && currentView === 'notes') {
-                    window.location.href = './clases.html';
-                } else {
-                    loadCurrentView();
-                }
+                loadCurrentView();
             } else {
                 alert(`Ocurrió un error al guardar la nota: ${lastAPIError || 'la base de datos rechazó la operación.'}`);
             }

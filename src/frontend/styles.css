@@ -444,10 +444,6 @@ body {
     text-underline-offset: 3px;
 }
 
-.home-page .top-navbar {
-    justify-content: flex-end;
-}
-
 .class-notes-section {
     display: grid;
     gap: 16px;
