@@ -2531,15 +2531,21 @@ body {
     }
 
     .editor-modal {
-        align-items: flex-end;
+        align-items: flex-start;
         padding: 0;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
     }
 
     .editor-content {
         width: 100%;
         max-width: none;
-        max-height: calc(92dvh - env(safe-area-inset-top, 0px));
-        overflow-y: auto;
+        max-height: none;
+        flex: 0 0 auto;
+        margin-top: auto;
+        overflow: visible;
         padding: 22px 18px calc(18px + env(safe-area-inset-bottom, 0px));
         border-radius: 22px 22px 0 0;
     }
