@@ -2637,6 +2637,22 @@ body {
         padding: 0;
     }
 
+    .note-view-modal {
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+        overflow-y: auto;
+    }
+
+    .note-view-card {
+        max-height: 80dvh;
+    }
+
+    .note-view-body-wrapper {
+        min-height: 0;
+        max-height: none;
+    }
+
     #editor-modal {
         height: 100vh;
         height: 100dvh;
