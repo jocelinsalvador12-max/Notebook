@@ -23,20 +23,29 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const savedUsername = localStorage.getItem('notebookUsername')?.trim();
     const savedEmail = localStorage.getItem('notebookEmail')?.trim();
+    const displayUsername = (username, email) => {
+        const value = String(username || '').trim();
+        if (value && !value.includes('@')) return value;
+        const cached = String(savedUsername || '').trim();
+        if (cached && !cached.includes('@')) return cached;
+        const address = String(email || value || '').trim();
+        return address.includes('@') ? address.split('@')[0] : (address || 'Usuario');
+    };
+    const initialUsername = displayUsername(savedUsername, savedEmail);
     document.querySelectorAll('.sidebar-user-name').forEach(name => {
-        name.textContent = savedUsername || 'Usuario';
+        name.textContent = initialUsername;
     });
     document.querySelectorAll('.sidebar-user-email').forEach(email => {
         email.textContent = savedEmail || 'Correo electrónico';
     });
     document.querySelectorAll('.profile-username').forEach(name => {
-        name.textContent = savedUsername || 'Usuario';
+        name.textContent = initialUsername;
     });
     document.querySelectorAll('.profile-email').forEach(email => {
         email.textContent = savedEmail || 'Correo electrónico';
     });
     document.querySelectorAll('#home-welcome-name').forEach(name => {
-        name.textContent = savedUsername || 'Usuario';
+        name.textContent = initialUsername;
     });
 
     // Validar sesión con el servidor y actualizar nombre de usuario
@@ -53,22 +62,23 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(data => {
             if (data && data.user && data.user.username) {
-                localStorage.setItem('notebookUsername', data.user.username);
+                const userName = displayUsername(data.user.username, data.user.email);
+                localStorage.setItem('notebookUsername', userName);
                 if (data.user.email) localStorage.setItem('notebookEmail', data.user.email);
                 document.querySelectorAll('.sidebar-user-name').forEach(name => {
-                    name.textContent = data.user.username;
+                    name.textContent = userName;
                 });
                 document.querySelectorAll('.sidebar-user-email').forEach(email => {
                     email.textContent = data.user.email || 'Correo electrónico';
                 });
                 document.querySelectorAll('.profile-username').forEach(name => {
-                    name.textContent = data.user.username;
+                    name.textContent = userName;
                 });
                 document.querySelectorAll('.profile-email').forEach(email => {
                     email.textContent = data.user.email || 'Correo electrónico';
                 });
                 document.querySelectorAll('#home-welcome-name').forEach(name => {
-                    name.textContent = data.user.username;
+                    name.textContent = userName;
                 });
             }
         })
