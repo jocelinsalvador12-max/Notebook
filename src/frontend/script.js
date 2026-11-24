@@ -29,6 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.sidebar-user-email').forEach(email => {
         email.textContent = savedEmail || 'Correo electrónico';
     });
+    document.querySelectorAll('#home-welcome-name').forEach(name => {
+        name.textContent = savedUsername || 'Usuario';
+    });
 
     // Validar sesión con el servidor y actualizar nombre de usuario
     fetch('/api/session', { credentials: 'same-origin' })
@@ -51,6 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 document.querySelectorAll('.sidebar-user-email').forEach(email => {
                     email.textContent = data.user.email || 'Correo electrónico';
+                });
+                document.querySelectorAll('#home-welcome-name').forEach(name => {
+                    name.textContent = data.user.username;
                 });
             }
         })

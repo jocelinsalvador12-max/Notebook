@@ -343,6 +343,160 @@ body {
     gap: 25px;
 }
 
+.home-welcome {
+    position: relative;
+    display: flex;
+    min-height: 190px;
+    align-items: center;
+    justify-content: space-between;
+    overflow: hidden;
+    padding: 28px 38px;
+    border: 1px solid rgba(255, 255, 255, 0.86);
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 76% 16%, rgba(255,255,255,.82) 0 7%, transparent 7.2%),
+        linear-gradient(112deg, #f2e4ff 0%, #fff3fa 56%, #e8f5ff 100%);
+    box-shadow: 0 8px 24px rgba(104, 72, 137, 0.08);
+}
+
+.home-welcome-copy {
+    position: relative;
+    z-index: 1;
+    max-width: 620px;
+}
+
+.home-welcome-eyebrow {
+    display: inline-block;
+    margin-bottom: 9px;
+    color: #8152a5;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .13em;
+}
+
+.home-welcome h1 {
+    color: #39224f;
+    font-family: 'Fredoka', sans-serif;
+    font-size: clamp(27px, 3vw, 38px);
+    font-weight: 600;
+    line-height: 1.12;
+}
+
+.home-welcome h1 span {
+    color: #8652b5;
+    font-family: inherit;
+}
+
+.home-welcome p {
+    margin-top: 8px;
+    color: #74677f;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.home-welcome-button {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    gap: 8px;
+    margin-top: 17px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 11px;
+    background: #8050ad;
+    box-shadow: 0 4px 10px rgba(128, 80, 173, .2);
+    color: #fff;
+    cursor: pointer;
+    font: 700 12px 'Plus Jakarta Sans', sans-serif;
+    transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+.home-welcome-button:hover {
+    transform: translateY(-1px);
+    background: #6d3f98;
+    box-shadow: 0 6px 14px rgba(128, 80, 173, .25);
+}
+
+.home-welcome-button span {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.home-welcome-art {
+    position: relative;
+    flex: 0 0 190px;
+    width: 190px;
+    height: 142px;
+    margin-right: 16px;
+}
+
+.welcome-orbit {
+    position: absolute;
+    border: 1px solid rgba(153, 105, 190, .2);
+    border-radius: 50%;
+}
+
+.welcome-orbit-back {
+    inset: 0 8px 0 10px;
+    transform: rotate(-18deg);
+}
+
+.welcome-note {
+    position: absolute;
+    width: 100px;
+    height: 118px;
+    border: 1px solid rgba(123, 86, 158, .1);
+    border-radius: 14px;
+    box-shadow: 0 12px 24px rgba(97, 68, 125, .13);
+}
+
+.welcome-note-back {
+    top: 15px;
+    left: 43px;
+    transform: rotate(12deg);
+    background: #dff3ff;
+}
+
+.welcome-note-front {
+    top: 13px;
+    left: 29px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px 13px;
+    transform: rotate(-7deg);
+    background: rgba(255, 255, 255, .94);
+}
+
+.welcome-note-mark {
+    margin-bottom: 2px;
+    color: #a46fcd;
+    font-size: 17px;
+}
+
+.welcome-note-front i {
+    display: block;
+    width: 100%;
+    height: 5px;
+    border-radius: 5px;
+    background: #eadcf4;
+}
+
+.welcome-note-front i:last-child {
+    width: 65%;
+    background: #d8ebf8;
+}
+
+.welcome-sparkle {
+    position: absolute;
+    color: #bd85dd;
+    font-size: 19px;
+}
+
+.sparkle-one { top: 4px; right: 17px; }
+.sparkle-two { right: 5px; bottom: 19px; color: #74b8df; }
+
 /* =========================================================
    BARRA SUPERIOR (NAVBAR: Buscador + Perfil)
    ========================================================= */
@@ -2264,6 +2418,29 @@ body {
         overflow: visible;
         gap: 20px;
         padding: 18px 16px 28px;
+    }
+
+    .home-welcome {
+        min-height: 0;
+        padding: 23px 21px;
+        border-radius: 18px;
+    }
+
+    .home-welcome-copy {
+        max-width: 100%;
+    }
+
+    .home-welcome h1 {
+        font-size: 29px;
+    }
+
+    .home-welcome p {
+        max-width: 300px;
+        font-size: 12px;
+    }
+
+    .home-welcome-art {
+        display: none;
     }
 
     .top-navbar {
