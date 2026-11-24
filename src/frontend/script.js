@@ -23,9 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const savedUsername = localStorage.getItem('notebookUsername')?.trim();
     const savedEmail = localStorage.getItem('notebookEmail')?.trim();
-    document.querySelectorAll('.user-greeting').forEach(greeting => {
-        greeting.textContent = `¡Hola, ${savedUsername || 'Peter'}!`;
-    });
     document.querySelectorAll('.sidebar-user-name').forEach(name => {
         name.textContent = savedUsername || 'Usuario';
     });
@@ -49,9 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data && data.user && data.user.username) {
                 localStorage.setItem('notebookUsername', data.user.username);
                 if (data.user.email) localStorage.setItem('notebookEmail', data.user.email);
-                document.querySelectorAll('.user-greeting').forEach(greeting => {
-                    greeting.textContent = `¡Hola, ${data.user.username}!`;
-                });
                 document.querySelectorAll('.sidebar-user-name').forEach(name => {
                     name.textContent = data.user.username;
                 });
