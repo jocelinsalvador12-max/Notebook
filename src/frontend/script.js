@@ -170,10 +170,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Elementos del DOM
-    const notesGrid = document.querySelector('.notes-grid') || 
-                      document.querySelector('.categories-grid') || 
-                      document.getElementById('trashGrid') || 
+    const notesGrid = (classView ? document.querySelector('.categories-grid') : document.querySelector('.notes-grid')) ||
+                      document.querySelector('.categories-grid') ||
+                      document.getElementById('trashGrid') ||
                       document.getElementById('notes-container');
+    const classNotesGrid = document.getElementById('class-notes-grid');
+    const classNotesCount = document.getElementById('class-notes-count');
 
     const searchInput = document.getElementById('search-input');
     const searchClearBtn = document.getElementById('search-clear-btn');
@@ -483,8 +485,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Renderizar tarjetas con diseño idéntico a la Imagen 1
-    function renderNotes(items) {
-        notesGrid.innerHTML = '';
+    function renderNotes(items, targetGrid = notesGrid) {
+        if (!targetGrid) return;
+        targetGrid.innerHTML = '';
 
         if (items.length === 0) {
             let mensaje = 'No hay notas para mostrar.';
@@ -497,7 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentView === 'favorites') {
                 mensaje = 'No tienes notas marcadas como favoritas aún.';
             }
-            notesGrid.innerHTML = `<p class="empty-msg">${mensaje}</p>`;
+            targetGrid.innerHTML = `<p class="empty-msg">${mensaje}</p>`;
             return;
         }
 
@@ -628,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 openNoteDetailModal(item);
             });
 
-            notesGrid.appendChild(card);
+            targetGrid.appendChild(card);
         });
     }
 
@@ -890,6 +893,19 @@ document.addEventListener('DOMContentLoaded', () => {
         ]);
 
         const notesList = Array.isArray(allNotes) ? allNotes : [];
+        if (classView && classNotesGrid) {
+            const query = currentSearchQuery.trim().toLowerCase();
+            const visibleClassNotes = query
+                ? notesList.filter(note => `${note.title || ''} ${note.content || ''} ${note.category || ''}`.toLowerCase().includes(query))
+                : notesList;
+            renderNotes(visibleClassNotes, classNotesGrid);
+            if (classNotesCount) {
+                classNotesCount.textContent = `${visibleClassNotes.length} ${visibleClassNotes.length === 1 ? 'apunte' : 'apuntes'}`;
+            }
+            if (visibleClassNotes.length === 0 && !query) {
+                classNotesGrid.innerHTML = '<p class="empty-msg">Aún no tienes apuntes. Crea uno y selecciónale una clase para verlo aquí.</p>';
+            }
+        }
         const categoriesData = withPermanentFolders((Array.isArray(dbCategories) ? dbCategories : [])
             .filter(c => c && c.name)
             .map(c => ({
@@ -1231,6 +1247,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isNotesPage = window.location.pathname.includes('app.html') || 
                                     window.location.pathname === '/' || 
                                     window.location.pathname.endsWith('/');
+                if (isNotesPage && !notesGrid) {
+                    window.location.href = './clases.html';
+                    return;
+                }
                 if (!isNotesPage) {
                     window.location.href = `./app.html?category=${encodeURIComponent(cat)}`;
                     return;
@@ -1365,7 +1385,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res) {
                 saveLocalCreatedAt(res.id, createdAt);
                 closeModal();
-                loadCurrentView();
+                if (!notesGrid && currentView === 'notes') {
+                    window.location.href = './clases.html';
+                } else {
+                    loadCurrentView();
+                }
             } else {
                 alert(`Ocurrió un error al guardar la nota: ${lastAPIError || 'la base de datos rechazó la operación.'}`);
             }

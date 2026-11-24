@@ -94,18 +94,9 @@
         </aside>
 
         <!-- Contenedor Principal -->
-        <main class="main-content">
+        <main class="main-content home-page">
             <!-- Barra superior con Buscador y Perfil de Usuario (Exacto a Imagen 1) -->
             <header class="top-navbar">
-                <div class="search-box">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <input type="text" id="search-input" placeholder="Buscar" autocomplete="off" />
-                    <button id="search-clear-btn" class="search-clear" title="Limpiar búsqueda" style="display: none;">×</button>
-                </div>
-
                 <div class="user-profile">
                     <div class="avatar-wrapper">
                         <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="avatar-img" />
@@ -139,6 +130,7 @@
                     <button id="btn-add-note" class="home-welcome-button" type="button">
                         <span aria-hidden="true">＋</span> Crear una nota
                     </button>
+                    <a class="home-welcome-link" href="./clases.html">Ver mis apuntes en Clases <span aria-hidden="true">→</span></a>
                 </div>
                 <div class="home-welcome-art" aria-hidden="true">
                     <div class="welcome-orbit welcome-orbit-back"></div>
@@ -152,20 +144,6 @@
                 </div>
             </section>
 
-            <!-- Fila de filtros -->
-            <section class="action-bar">
-                <div class="filter-tabs" id="filter-tabs-container">
-                    <button class="filter-tab active" data-category="All">Todas las notas</button>
-                </div>
-            </section>
-
-            <!-- Mensaje de estado de búsqueda o filtro -->
-            <div id="filter-feedback" class="filter-feedback" style="display: none;"></div>
-
-            <!-- Cuadrícula de Tarjetas de Notas (Diseño limpio como Imagen 1) -->
-            <div id="notes-container" class="notes-grid">
-                <!-- Las notas guardadas se dibujan aquí dinámicamente -->
-            </div>
         </main>
     </div>
 
