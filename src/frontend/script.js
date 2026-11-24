@@ -29,6 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.sidebar-user-email').forEach(email => {
         email.textContent = savedEmail || 'Correo electrónico';
     });
+    document.querySelectorAll('.profile-username').forEach(name => {
+        name.textContent = savedUsername || 'Usuario';
+    });
+    document.querySelectorAll('.profile-email').forEach(email => {
+        email.textContent = savedEmail || 'Correo electrónico';
+    });
     document.querySelectorAll('#home-welcome-name').forEach(name => {
         name.textContent = savedUsername || 'Usuario';
     });
@@ -53,6 +59,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     name.textContent = data.user.username;
                 });
                 document.querySelectorAll('.sidebar-user-email').forEach(email => {
+                    email.textContent = data.user.email || 'Correo electrónico';
+                });
+                document.querySelectorAll('.profile-username').forEach(name => {
+                    name.textContent = data.user.username;
+                });
+                document.querySelectorAll('.profile-email').forEach(email => {
                     email.textContent = data.user.email || 'Correo electrónico';
                 });
                 document.querySelectorAll('#home-welcome-name').forEach(name => {
