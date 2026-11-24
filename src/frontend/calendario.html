@@ -272,6 +272,89 @@
             background: rgba(168,85,247,0.05);
         }
 
+        /* Vistas de agenda en computadora */
+        @media (min-width: 641px) {
+            .week-view {
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+
+            .week-body {
+                flex: 1;
+                min-height: 0;
+                max-height: none;
+                grid-template-columns: 68px repeat(7, minmax(0, 1fr));
+            }
+
+            .week-header {
+                grid-template-columns: 68px repeat(7, minmax(0, 1fr));
+            }
+
+            .week-hour-label,
+            .week-hour-slot {
+                height: 60px;
+            }
+
+            .week-day-slots {
+                min-width: 0;
+            }
+
+            .week-view .cal-event-chip {
+                margin: 4px 5px;
+                padding: 7px 8px;
+                border-radius: 8px;
+                font-size: 0.7rem;
+                white-space: normal;
+                line-height: 1.35;
+                align-items: flex-start;
+            }
+
+            #view-dia {
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+
+            #view-dia > div:first-child {
+                flex: 0 0 auto;
+            }
+
+            #day-body {
+                flex: 1;
+                min-height: 0;
+                max-height: none !important;
+                grid-template-columns: 68px minmax(0, 1fr) !important;
+            }
+
+            #day-body .week-hour-label,
+            #day-body .week-hour-slot {
+                height: 60px;
+            }
+
+            #day-body .day-slots-col {
+                min-width: 0;
+            }
+
+            #day-body .cal-event-chip {
+                margin: 4px 10px !important;
+                padding: 9px 12px !important;
+                border-radius: 9px;
+                font-size: 0.85rem !important;
+                line-height: 1.4;
+                white-space: normal;
+            }
+
+            #day-body .day-empty-state {
+                margin: 16px 12px;
+                padding: 14px 18px;
+                border-radius: 12px;
+                background: #f8f5fc;
+                color: #74677f;
+                font-size: 0.9rem;
+            }
+        }
+
         @media (max-width: 640px) {
             .main-content {
                 padding: 18px 16px 28px !important;
@@ -1084,8 +1167,9 @@
                 document.querySelectorAll('.cal-view-tab').forEach(t => t.classList.remove('active'));
                 document.getElementById(`tab-${v}`).classList.add('active');
                 document.getElementById('view-mes').style.display = v === 'mes' ? 'flex' : 'none';
-                document.getElementById('view-semana').style.display = v === 'semana' ? 'block' : 'none';
-                document.getElementById('view-dia').style.display = v === 'dia' ? 'block' : 'none';
+                const desktop = window.matchMedia('(min-width: 641px)').matches;
+                document.getElementById('view-semana').style.display = v === 'semana' ? (desktop ? 'flex' : 'block') : 'none';
+                document.getElementById('view-dia').style.display = v === 'dia' ? (desktop ? 'flex' : 'block') : 'none';
                 refreshView();
             });
         });
