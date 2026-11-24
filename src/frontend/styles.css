@@ -2531,39 +2531,45 @@ body {
     }
 
     .editor-modal {
-        justify-content: flex-start;
-        align-items: flex-start;
+        align-items: flex-end;
         padding: 0;
+    }
+
+    #editor-modal {
+        height: 100vh;
+        height: 100dvh;
         overflow-y: scroll;
-        scrollbar-width: thin;
-        scrollbar-color: #9b70bb rgba(128, 80, 173, .1);
-        scrollbar-gutter: stable;
         overscroll-behavior-y: contain;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-y;
+        scrollbar-width: auto;
+        scrollbar-color: #8050ad rgba(128, 80, 173, .12);
     }
 
-    .editor-modal::-webkit-scrollbar {
+    #editor-modal.active {
+        display: block;
+    }
+
+    #editor-modal::-webkit-scrollbar {
         width: 9px;
     }
 
-    .editor-modal::-webkit-scrollbar-track {
+    #editor-modal::-webkit-scrollbar-track {
         background: rgba(128, 80, 173, .1);
         border-radius: 9px;
     }
 
-    .editor-modal::-webkit-scrollbar-thumb {
-        background: #9b70bb;
+    #editor-modal::-webkit-scrollbar-thumb {
+        background: #8050ad;
         border: 2px solid rgba(255, 255, 255, .72);
         border-radius: 9px;
     }
 
-    .editor-content {
+    #editor-modal .editor-content {
         width: 100%;
         max-width: none;
         max-height: none;
-        flex: 0 0 auto;
-        margin-top: auto;
+        margin: 0;
         overflow: visible;
         padding: 22px 18px calc(18px + env(safe-area-inset-bottom, 0px));
         border-radius: 22px 22px 0 0;
