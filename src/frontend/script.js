@@ -298,9 +298,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (body) options.body = JSON.stringify(body);
 
             const response = await fetch(`${API_URL}${endpoint}`, options);
+            const responseText = await response.text();
+            let result = null;
+            if (responseText) {
+                try {
+                    result = JSON.parse(responseText);
+                } catch {
+                    result = null;
+                }
+            }
             if (!response.ok) {
-                const errorBody = await response.json().catch(() => ({}));
-                lastAPIError = errorBody.error || `Error del servidor (${response.status}).`;
+                const responseMessage = result?.error || (responseText && responseText.slice(0, 240));
+                lastAPIError = responseMessage || `Error del servidor (${response.status}).`;
                 console.error(`Error HTTP ${response.status} en ${endpoint}:`, lastAPIError);
                 if (response.status === 401) {
                     const currentPath = window.location.pathname;
@@ -311,7 +320,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return null;
             }
-            const result = await response.json();
+            if (responseText && result === null) {
+                lastAPIError = `El servidor respondió con un formato inesperado (${response.status}).`;
+                console.error(`Respuesta no JSON en ${endpoint}:`, responseText.slice(0, 500));
+                return null;
+            }
             // The API returns success for some UPDATEs even if the selected
             // workspace does not own that row. Surface that as a failed save.
             if (result && result.success === false) {
