@@ -68,7 +68,16 @@
                         password: document.getElementById('password').value
                     })
                 });
-                const result = await response.json();
+                const responseText = await response.text();
+                let result = null;
+                try {
+                    result = responseText ? JSON.parse(responseText) : {};
+                } catch {
+                    console.error('Respuesta no JSON al iniciar sesión:', response.status, responseText.slice(0, 1000));
+                    throw new Error(response.status >= 500
+                        ? 'El servidor de inicio de sesión tuvo un problema. Inténtalo de nuevo más tarde.'
+                        : `Respuesta inesperada del servidor (${response.status}).`);
+                }
                 if (!response.ok) throw new Error(result.error || 'No se pudo iniciar sesión.');
                 localStorage.setItem('notebookUsername', result.user.username);
                 if (result.user.email) localStorage.setItem('notebookEmail', result.user.email);
