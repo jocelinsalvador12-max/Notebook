@@ -292,8 +292,8 @@ async function initializeWorkspaceSchema() {
         await db.execute('ALTER TABLE Recordatorios ADD COLUMN is_sent INTEGER NOT NULL DEFAULT 0');
         reminderSentColumns = ['is_sent'];
     }
-    const noteColumns = await db.execute('PRAGMA table_info(Notas)');
-    if (!noteColumns.rows.some(column => column.name === 'created_at')) {
+    const finalNoteColumns = await db.execute('PRAGMA table_info(Notas)');
+    if (!finalNoteColumns.rows.some(column => column.name === 'created_at')) {
         await db.execute('ALTER TABLE Notas ADD COLUMN created_at TEXT');
     }
 }
