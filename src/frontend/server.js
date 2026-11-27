@@ -850,10 +850,13 @@ const handleNoteCategory = async (req, res) => {
     const { id } = req.params;
     const { category } = req.body;
     try {
-        await db.execute({
+        const result = await db.execute({
             sql: 'UPDATE Notas SET category = ? WHERE id = ? AND owner_id = ?',
             args: [category || 'General', id, req.workspaceId]
         });
+        if (result.rowsAffected === 0) {
+            return res.status(404).json({ success: false, error: 'No se encontró la nota en este espacio de trabajo.' });
+        }
         res.json({ success: true, id, category: category || 'General', message: 'Nota movida a la carpeta' });
     } catch (error) {
         console.error('Error al mover nota a carpeta:', error);
@@ -918,57 +921,76 @@ app.put('/api/categories/:id', async (req, res) => {
     if (!name) {
         return res.status(400).json({ error: 'El nombre de la carpeta es requerido' });
     }
+    let tx;
     try {
-        const currentResult = await db.execute({
+        tx = await db.transaction('write');
+        const currentResult = await tx.execute({
             sql: `SELECT ${categoryIdColumn} AS id, ${categoryNameColumn} AS name FROM Categorias WHERE ${categoryIdColumn} = ? AND owner_id = ?`,
             args: [id, req.workspaceId]
         });
         const current = currentResult.rows[0];
-        if (!current) return res.status(404).json({ error: 'No se encontró la carpeta' });
-        const duplicate = await db.execute({
+        if (!current) {
+            await tx.rollback();
+            return res.status(404).json({ error: 'No se encontró la carpeta' });
+        }
+        const duplicate = await tx.execute({
             sql: `SELECT ${categoryIdColumn} AS id FROM Categorias WHERE owner_id = ? AND lower(${categoryNameColumn}) = lower(?) AND ${categoryIdColumn} <> ? LIMIT 1`,
             args: [req.workspaceId, name, id]
         });
         if (duplicate.rows.length > 0) {
+            await tx.rollback();
             return res.status(409).json({ error: 'Ya existe una carpeta con ese nombre' });
         }
-        await db.execute({
+        await tx.execute({
             sql: `UPDATE Categorias SET ${categoryNameColumn} = ? WHERE ${categoryIdColumn} = ? AND owner_id = ?`,
             args: [name, id, req.workspaceId]
         });
-        await db.execute({
+        await tx.execute({
             sql: 'UPDATE Notas SET category = ? WHERE owner_id = ? AND lower(category) = lower(?)',
             args: [name, req.workspaceId, current.name]
         });
+        await tx.commit();
         res.json({ success: true, id, name, message: 'Carpeta actualizada' });
     } catch (error) {
+        if (tx && !tx.closed) await tx.rollback().catch(() => {});
         console.error('Error al actualizar carpeta:', error);
         res.status(500).json({ error: error.message });
+    } finally {
+        if (tx) tx.close();
     }
 });
 
 // DELETE: Eliminar categoría / carpeta
 app.delete('/api/categories/:id', async (req, res) => {
     const { id } = req.params;
+    let tx;
     try {
-        const result = await db.execute({
+        tx = await db.transaction('write');
+        const result = await tx.execute({
             sql: `SELECT ${categoryNameColumn} AS name FROM Categorias WHERE ${categoryIdColumn} = ? AND owner_id = ?`,
             args: [id, req.workspaceId]
         });
         const folder = result.rows[0];
-        if (!folder) return res.status(404).json({ error: 'No se encontró la carpeta' });
-        await db.execute({
+        if (!folder) {
+            await tx.rollback();
+            return res.status(404).json({ error: 'No se encontró la carpeta' });
+        }
+        await tx.execute({
             sql: 'UPDATE Notas SET category = ? WHERE owner_id = ? AND lower(category) = lower(?)',
             args: ['', req.workspaceId, folder.name]
         });
-        await db.execute({
+        await tx.execute({
             sql: `DELETE FROM Categorias WHERE ${categoryIdColumn} = ? AND owner_id = ?`,
             args: [id, req.workspaceId]
         });
+        await tx.commit();
         res.json({ success: true, message: 'Carpeta eliminada' });
     } catch (error) {
+        if (tx && !tx.closed) await tx.rollback().catch(() => {});
         console.error('Error al eliminar categoría:', error);
         res.status(500).json({ error: error.message });
+    } finally {
+        if (tx) tx.close();
     }
 });
 
