@@ -181,6 +181,7 @@ async function initializeWorkspaceSchema() {
         assigned_at TEXT,
         due_at TEXT,
         created_at TEXT,
+        is_completed INTEGER NOT NULL DEFAULT 0,
         owner_id TEXT
     )`);
     await db.execute(`CREATE TABLE IF NOT EXISTS Categorias (
@@ -231,6 +232,10 @@ async function initializeWorkspaceSchema() {
         if (!columns.rows.some(column => column.name === 'owner_id')) {
             await db.execute(`ALTER TABLE ${table} ADD COLUMN owner_id TEXT`);
         }
+    }
+    const noteColumns = await db.execute('PRAGMA table_info(Notas)');
+    if (!noteColumns.rows.some(column => column.name === 'is_completed')) {
+        await db.execute('ALTER TABLE Notas ADD COLUMN is_completed INTEGER NOT NULL DEFAULT 0');
     }
     const categoryColumns = await db.execute('PRAGMA table_info(Categorias)');
     const categoryColumnNames = categoryColumns.rows.map(column => column.name);
@@ -585,7 +590,7 @@ app.use('/api', async (req, res, next) => {
 app.get('/api/notes', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at, created_at FROM Notas WHERE owner_id = ? AND in_trash = 0 ORDER BY id DESC',
+            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, is_completed, assigned_at, due_at, created_at FROM Notas WHERE owner_id = ? AND in_trash = 0 ORDER BY id DESC',
             args: [req.workspaceId]
         });
         res.json(result.rows);
@@ -679,11 +684,43 @@ app.get('/api/notes/:id/details', async (req, res) => {
     }
 });
 
+// Marcar una nota como completada o volver a dejarla pendiente.
+app.patch('/api/notes/:id/completed', async (req, res) => {
+    const value = req.body.is_completed === true || req.body.is_completed === 1 || req.body.is_completed === '1' ? 1 : 0;
+    try {
+        const result = await db.execute({
+            sql: 'UPDATE Notas SET is_completed = ? WHERE id = ? AND owner_id = ?',
+            args: [value, req.params.id, req.workspaceId]
+        });
+        if (!result.rowsAffected) return res.status(404).json({ error: 'No se encontró la nota.' });
+        res.json({ success: true, is_completed: value });
+    } catch (error) {
+        console.error('Error al actualizar estado de nota:', error);
+        res.status(500).json({ error: 'No se pudo actualizar el estado de la nota.' });
+    }
+});
+
+// Alternar el estado de una tarea dentro de una nota.
+app.patch('/api/subtasks/:id/completed', async (req, res) => {
+    const value = req.body.is_completed === true || req.body.is_completed === 1 || req.body.is_completed === '1' ? 1 : 0;
+    try {
+        const result = await db.execute({
+            sql: 'UPDATE Subtareas SET is_completed = ? WHERE id = ? AND owner_id = ?',
+            args: [value, req.params.id, req.workspaceId]
+        });
+        if (!result.rowsAffected) return res.status(404).json({ error: 'No se encontró la tarea.' });
+        res.json({ success: true, is_completed: value });
+    } catch (error) {
+        console.error('Error al actualizar estado de tarea:', error);
+        res.status(500).json({ error: 'No se pudo actualizar la tarea.' });
+    }
+});
+
 // GET: Obtener notas marcadas como favoritas
 app.get('/api/favorites', async (req, res) => {
     try {
         const result = await db.execute({
-            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, assigned_at, due_at FROM Notas WHERE owner_id = ? AND in_trash = 0 AND is_favorite = 1 ORDER BY id DESC',
+            sql: 'SELECT id, title, content, color, category, is_favorite, in_trash, is_completed, assigned_at, due_at FROM Notas WHERE owner_id = ? AND in_trash = 0 AND is_favorite = 1 ORDER BY id DESC',
             args: [req.workspaceId]
         });
         res.json(result.rows);

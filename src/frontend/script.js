@@ -607,7 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <div class="card-bottom-row">
                         <span class="category-badge">${escapeHTML(item.category || 'General')}</span>
-                        <span class="card-expand-hint" title="Ver contenido completo">Ver nota ↗</span>
+                        <span class="card-expand-hint" title="Ver contenido completo">${item.is_completed ? '✅ Completada' : 'Ver nota ↗'}</span>
                     </div>
                 `;
 
@@ -702,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="note-view-footer-actions">
                         <button type="button" class="btn-view-fav"></button>
                         <button type="button" class="btn-view-delete"></button>
-                        <button type="button" class="btn-view-done">Entendido</button>
+                    <button type="button" class="btn-view-done">✅ Marcar completada</button>
                     </div>
                 </div>
             </div>
@@ -754,6 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const colorClass = getColorClass(item.color, item.category);
         const isFav = item.is_favorite === 1 || item.is_favorite === true;
         const isTrash = currentView === 'trash' || item.in_trash === 1;
+        btnDone.textContent = isTrash ? 'Entendido' : (item.is_completed === 1 || item.is_completed === true ? '↩️ Marcar pendiente' : '✅ Marcar completada');
         const formattedDate = formatNoteDate(item.created_at || null, item.id);
 
         // Estilos del tema de color pastel
@@ -788,13 +789,31 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchAPI(`/notes/${item.id}/details`).then(details => {
                 if (details && Array.isArray(details.subtasks) && details.subtasks.length > 0) {
                     const completed = details.subtasks.filter(s => s.is_completed).length;
-                    subtasksTitle.textContent = `☑️ Subtareas (${completed}/${details.subtasks.length})`;
+                    subtasksTitle.textContent = `☑️ Tareas (${completed}/${details.subtasks.length})`;
                     subtasksList.innerHTML = details.subtasks.map(s => `
                         <li class="note-view-subtask-item ${s.is_completed ? 'completed' : ''}">
-                            <span>${s.is_completed ? '✅' : '⬜'}</span>
+                            <button type="button" class="subtask-complete-toggle" data-subtask-id="${escapeHTML(s.id)}" aria-label="${s.is_completed ? 'Marcar pendiente' : 'Marcar completada'}">${s.is_completed ? '✅' : '⬜'}</button>
                             <span>${escapeHTML(s.title || '')}</span>
                         </li>
                     `).join('');
+                    subtasksList.querySelectorAll('.subtask-complete-toggle').forEach(button => {
+                        button.addEventListener('click', async () => {
+                            const subtask = details.subtasks.find(task => String(task.id) === button.dataset.subtaskId);
+                            if (!subtask) return;
+                            const next = !(subtask.is_completed === 1 || subtask.is_completed === true);
+                            const result = await fetchAPI(`/subtasks/${encodeURIComponent(subtask.id)}/completed`, 'PATCH', { is_completed: next });
+                            if (!result) {
+                                alert(lastAPIError || 'No se pudo actualizar la tarea.');
+                                return;
+                            }
+                            subtask.is_completed = next ? 1 : 0;
+                            const doneCount = details.subtasks.filter(task => task.is_completed === 1 || task.is_completed === true).length;
+                            subtasksTitle.textContent = `☑️ Tareas (${doneCount}/${details.subtasks.length})`;
+                            button.textContent = next ? '✅' : '⬜';
+                            button.setAttribute('aria-label', next ? 'Marcar pendiente' : 'Marcar completada');
+                            button.closest('li').classList.toggle('completed', next);
+                        });
+                    });
                     subtasksCard.style.display = 'block';
                 }
             }).catch(() => {});
@@ -882,7 +901,18 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
 
-        btnDone.onclick = closeNoteDetailModal;
+        btnDone.onclick = async () => {
+            if (isTrash) return closeNoteDetailModal();
+            const next = !(item.is_completed === 1 || item.is_completed === true);
+            const updated = await fetchAPI(`/notes/${encodeURIComponent(item.id)}/completed`, 'PATCH', { is_completed: next });
+            if (!updated) {
+                alert(lastAPIError || 'No se pudo actualizar el estado de la nota.');
+                return;
+            }
+            item.is_completed = next ? 1 : 0;
+            btnDone.textContent = next ? '↩️ Marcar pendiente' : '✅ Marcar completada';
+            loadCurrentView();
+        };
         btnClose.onclick = closeNoteDetailModal;
 
         modal.classList.add('active');
